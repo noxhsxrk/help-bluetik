@@ -1,7 +1,50 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
+
+// Isolated Twitter embed component — bypasses React's VDOM to prevent overwriting Twitter's iframe
+function TweetEmbed({ html }: { html: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!ref.current) return;
+    // Set HTML once and never touch again (React won't reconcile this node)
+    ref.current.innerHTML = html;
+
+    // Hydrate the blockquote into an iframe
+    const hydrate = () => {
+      // @ts-ignore
+      if (window.twttr && window.twttr.widgets) {
+        // @ts-ignore
+        window.twttr.widgets.load(ref.current!);
+      }
+    };
+
+    // @ts-ignore
+    if (window.twttr) {
+      // @ts-ignore
+      window.twttr.ready(() => hydrate());
+    } else {
+      const interval = setInterval(() => {
+        // @ts-ignore
+        if (window.twttr && window.twttr.widgets) {
+          hydrate();
+          clearInterval(interval);
+        }
+      }, 200);
+      return () => clearInterval(interval);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);  // Empty deps: only run once on mount. html won't change for a given post.
+
+  return (
+    <div
+      ref={ref}
+      className="w-full my-1 rounded-md overflow-hidden flex justify-center text-sm"
+    />
+  );
+}
 
 interface User {
   id: string;
@@ -140,26 +183,26 @@ export default function App() {
     };
   }, []);
 
-  // Load Twitter widgets script once on mount
+  // Load Twitter widgets script once on mount, hydrate after load
   useEffect(() => {
-    const existingScript = document.querySelector('script[src="https://platform.twitter.com/widgets.js"]');
+    const twitterScriptUrl = 'https://platform.twitter.com/widgets.js';
+    const existingScript = document.querySelector(`script[src="${twitterScriptUrl}"]`);
     if (!existingScript) {
       const script = document.createElement('script');
-      script.src = 'https://platform.twitter.com/widgets.js';
+      script.src = twitterScriptUrl;
       script.async = true;
       script.charset = 'utf-8';
+      script.onload = () => {
+        // @ts-ignore
+        if (window.twttr && window.twttr.widgets) {
+          // @ts-ignore
+          window.twttr.widgets.load();
+        }
+      };
       document.body.appendChild(script);
     }
   }, []);
 
-  // Hydrate Twitter oEmbed blockquotes whenever posts change
-  useEffect(() => {
-    // @ts-ignore
-    if (window.twttr && window.twttr.widgets) {
-      // @ts-ignore
-      window.twttr.widgets.load();
-    }
-  }, [posts]);
 
   // Handle Hash updates
   useEffect(() => {
@@ -175,7 +218,7 @@ export default function App() {
     };
     window.addEventListener('hashchange', handleHash);
     return () => window.removeEventListener('hashchange', handleHash);
-  }, [currentUser]);
+  }, [currentUser?.role]);
 
   // Load feed, trends, stats when user switches views or submits content
   useEffect(() => {
@@ -218,7 +261,7 @@ export default function App() {
     };
 
     loadData();
-  }, [currentUser, currentView]);
+  }, [currentUser?.id, currentUser?.role, currentView]);
 
 
 
@@ -778,10 +821,7 @@ export default function App() {
 
                           {/* Render the official Twitter oEmbed HTML block */}
                           {post.oembed_html ? (
-                            <div
-                              dangerouslySetInnerHTML={{ __html: post.oembed_html }}
-                              className="w-full my-1 rounded-md overflow-hidden min-h-[120px] flex justify-center text-sm"
-                            />
+                            <TweetEmbed html={post.oembed_html} />
                           ) : (
                             /* High-Fidelity Custom Native X Card Fallback */
                             <div className="flex flex-col gap-3 text-left">
