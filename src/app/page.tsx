@@ -109,6 +109,8 @@ export default function App() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [interactedIds, setInteractedIds] = useState<string[]>([]);
   const [expandedPostIds, setExpandedPostIds] = useState<Set<string>>(new Set());
+  const [feedSort, setFeedSort] = useState<'priority' | 'newest' | 'oldest'>('priority');
+  const [feedFilter, setFeedFilter] = useState<'all' | 'unhelped' | 'helped'>('all');
   const [userInteractions, setUserInteractions] = useState<Record<string, string[]>>({});
   const [trends, setTrends] = useState<TrendingHashtag[]>([]);
   const [leaderboardUsers, setLeaderboardUsers] = useState<User[]>([]);
@@ -783,21 +785,100 @@ export default function App() {
 
               {/* Active Posts Feed */}
               <div>
-                <h2 className="text-xl font-bold mb-4 flex justify-between items-center">
-                  บอร์ด
+                <h2 className="text-xl font-bold mb-3 flex justify-between items-center">
+                  บอร์ดแลกเปลี่ยนยอด
                   <span className="text-xs text-muted-zinc font-normal">แชร์ได้ทุก {POST_COOLDOWN_LABEL} โพสหมดอายุใน {POST_EXPIRY_LABEL}</span>
                 </h2>
 
-                <div className="flex flex-col gap-4">
-                  {posts.length === 0 ? (
-                    <div className="text-center p-12 border border-dashed border-border-dark rounded-md text-muted-zinc">
-                      <h3 className="font-display text-lg text-ink-light mb-1">ยังไม่มีผู้ลงโพสทวีตในระบบขณะนี้</h3>
-                      <p className="text-xs">แชร์ลิงก์โพสทวีตแรกของคุณเพื่อรับคะแนน Impression จากเพื่อนๆ ในกลุ่มได้ทันทีก่อนใคร!</p>
-                    </div>
-                  ) : (
-                    posts.map(post => {
-                      const isDone = interactedIds.includes(post.id);
-                      const isExpanded = expandedPostIds.has(post.id);
+                {/* Sort & Filter Controls */}
+                <div className="flex flex-col sm:flex-row gap-3 justify-between items-center bg-surface-dark/40 border border-border-dark p-3.5 rounded-md mb-4">
+                  {/* Filters Tab buttons */}
+                  <div className="flex gap-1.5 w-full sm:w-auto">
+                    {(['all', 'unhelped', 'helped'] as const).map(f => (
+                      <button
+                        key={f}
+                        onClick={() => setFeedFilter(f)}
+                        className={`px-3 py-1.5 rounded-sm text-xs font-semibold cursor-pointer transition-all ${
+                          feedFilter === f
+                            ? 'bg-primary text-white font-bold'
+                            : 'bg-zinc-900 border border-border-dark text-muted-zinc hover:text-ink-light'
+                        }`}
+                      >
+                        {f === 'all' && 'ทั้งหมด'}
+                        {f === 'unhelped' && 'ยังไม่ได้ช่วย'}
+                        {f === 'helped' && 'ช่วยเหลือแล้ว'}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Sort Selector Dropdown */}
+                  <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                    <span className="text-xs text-muted-zinc shrink-0">เรียงตาม:</span>
+                    <select
+                      value={feedSort}
+                      onChange={e => setFeedSort(e.target.value as any)}
+                      className="bg-bg-dark border border-border-dark text-xs text-ink-light px-2.5 py-1.5 rounded-sm focus:outline-none focus:border-primary w-full sm:w-44"
+                    >
+                      <option value="priority">🔥 ความเร่งด่วน (แต้มสูงสุด)</option>
+                      <option value="newest">⏱️ แชร์ล่าสุด</option>
+                      <option value="oldest">⏳ แชร์เก่าสุด</option>
+                    </select>
+                  </div>
+                </div>
+
+                {(() => {
+                  // Compute client-side filtered & sorted posts feed
+                  const filteredFeedPosts = posts.filter(post => {
+                    const isDone = interactedIds.includes(post.id);
+                    if (feedFilter === 'unhelped') return !isDone;
+                    if (feedFilter === 'helped') return isDone;
+                    return true;
+                  });
+
+                  const sortedFeedPosts = [...filteredFeedPosts].sort((a, b) => {
+                    const aDone = interactedIds.includes(a.id);
+                    const bDone = interactedIds.includes(b.id);
+
+                    // Always deprioritize helped posts to the very bottom
+                    if (aDone && !bDone) return 1;
+                    if (!aDone && bDone) return -1;
+
+                    if (feedSort === 'newest') {
+                      return b.created_at - a.created_at;
+                    }
+                    if (feedSort === 'oldest') {
+                      return a.created_at - b.created_at;
+                    }
+
+                    // Default: 'priority' (Urgent / High Bounty first)
+                    if (aDone && bDone) {
+                      return b.created_at - a.created_at;
+                    }
+
+                    const aPoints = getPostHelpPoints(a.created_at);
+                    const bPoints = getPostHelpPoints(b.created_at);
+
+                    if (aPoints !== bPoints) {
+                      return bPoints - aPoints;
+                    }
+                    return b.created_at - a.created_at;
+                  });
+
+                  return (
+                    <div className="flex flex-col gap-4">
+                      {sortedFeedPosts.length === 0 ? (
+                        <div className="text-center p-12 border border-dashed border-border-dark rounded-md text-muted-zinc">
+                          <h3 className="font-display text-lg text-ink-light mb-1">ไม่พบโพสทวีตในหมวดนี้ขณะนี้</h3>
+                          <p className="text-xs">
+                            {feedFilter === 'unhelped' 
+                              ? 'ยินดีด้วย! คุณช่วยเหลือเพื่อนๆ ในกลุ่มครบหมดแล้ว รอแชร์ใหม่รอบถัดไปได้เลย'
+                              : 'ยังไม่มีประวัติการแชร์ในเงื่อนไขการคัดกรองนี้'}
+                          </p>
+                        </div>
+                      ) : (
+                        sortedFeedPosts.map(post => {
+                          const isDone = interactedIds.includes(post.id);
+                          const isExpanded = expandedPostIds.has(post.id);
 
                       // ── COLLAPSED VIEW (post ที่ช่วยเหลือแล้ว) ──────────────
                       if (isDone && !isExpanded) {
@@ -923,10 +1004,11 @@ export default function App() {
                       );
                     })
                   )}
-                </div>
-              </div>
-
+                  </div>
+                );
+              })()}
             </div>
+          </div>
 
             {/* RIGHT SIDEBAR: HASHTAG TREND MONITOR & LEADERBOARD STATS */}
             <div className="flex flex-col gap-6">
