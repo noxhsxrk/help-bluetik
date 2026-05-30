@@ -328,6 +328,31 @@ export default function App() {
       return;
     }
 
+    // Determine points for optimistic update: Repost/Quote = 3, Mention = 2, Like = 1
+    let points = 1;
+    if (type === 'repost' || type === 'quote') points = 3;
+    else if (type === 'mention') points = 2;
+
+    // Save previous state for graceful rollback if API request fails
+    const oldUserInteractions = { ...userInteractions };
+    const oldHelpScore = currentUser?.help_score || 0;
+
+    // 1. Optimistic Update: Instantly disable button and update state
+    setUserInteractions(prev => {
+      const postInts = prev[postId] || [];
+      if (!postInts.includes(type)) {
+        return {
+          ...prev,
+          [postId]: [...postInts, type]
+        };
+      }
+      return prev;
+    });
+
+    if (currentUser) {
+      setCurrentUser(prev => prev ? { ...prev, help_score: prev.help_score + points } : null);
+    }
+
     // Generate free X Web Intent URL to trigger manual browser action
     let intentUrl = '';
     const encodedUrl = encodeURIComponent(post.x_post_url || `https://x.com/${post.x_username}/status/${post.x_post_id}`);
@@ -357,28 +382,39 @@ export default function App() {
       if (data.success) {
         triggerToast(`บันทึกแต้มสำเร็จ! ได้รับ +${data.pointsAwarded} แต้มจากการช่วยเหลือเพื่อนสมาชิก`, 'success');
 
+        // Sync with absolute DB score to keep states perfectly aligned
         if (currentUser) {
           setCurrentUser(prev => prev ? { ...prev, help_score: data.totalScore } : null);
         }
 
+        // Apply visual card feedback
         const postCard = document.getElementById(`post-${postId}`);
         if (postCard) {
-          postCard.style.transform = 'scale(0.96)';
-          postCard.style.opacity = '0.4';
+          postCard.style.transform = 'scale(0.98)';
+          postCard.style.opacity = '0.7';
         }
 
-        setTimeout(async () => {
-          const postsRes = await fetch('/api/posts');
-          const postsData = await postsRes.json();
-          setPosts(postsData.posts || []);
-          setInteractedIds(postsData.interactedIds || []);
-          setUserInteractions(postsData.userInteractions || {});
-        }, 400);
+        // Fetch refreshed posts list in background to sync feed order
+        const postsRes = await fetch('/api/posts');
+        const postsData = await postsRes.json();
+        setPosts(postsData.posts || []);
+        setInteractedIds(postsData.interactedIds || []);
+        setUserInteractions(postsData.userInteractions || {});
 
       } else {
+        // Rollback optimistic state if API returned error
+        setUserInteractions(oldUserInteractions);
+        if (currentUser) {
+          setCurrentUser(prev => prev ? { ...prev, help_score: oldHelpScore } : null);
+        }
         triggerToast(data.error || 'การช่วยเหลือน้ำใจทวีตล้มเหลว', 'error');
       }
     } catch {
+      // Rollback optimistic state if request failed
+      setUserInteractions(oldUserInteractions);
+      if (currentUser) {
+        setCurrentUser(prev => prev ? { ...prev, help_score: oldHelpScore } : null);
+      }
       triggerToast('เชื่อมต่อ API ขัดข้อง', 'error');
     }
   };
