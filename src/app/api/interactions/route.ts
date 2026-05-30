@@ -52,7 +52,7 @@ export async function POST(request: Request) {
     const newInteraction = await DB.recordInteraction({
       post_id: postId,
       helper_user_id: userId,
-      type: 'help'
+      type: 'like'
     });
 
     const updatedUser = await DB.incrementUserScore(userId, POINTS_PER_HELP);
