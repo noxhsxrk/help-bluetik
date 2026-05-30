@@ -53,6 +53,20 @@ export async function GET() {
   }
 }
 
+function extractTweetText(html: string): string {
+  const match = html.match(/<p[^>]*>([\s\S]*?)<\/p>/i);
+  if (!match) return '';
+  // Decode HTML entities and strip nested HTML tags like <a>
+  return match[1]
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&apos;/g, "'")
+    .replace(/<[^>]*>/g, '');
+}
+
 // POST: Add new post (handles rate limiting, duplicate checks, parses tweet URLs, and calls free X oEmbed)
 export async function POST(request: Request) {
   try {
@@ -115,8 +129,14 @@ export async function POST(request: Request) {
       if (oembedRes.ok) {
         const oembedData = await oembedRes.json();
         oembedHtml = oembedData.html || '';
-        // Extract title or author name as fallback text content
-        finalContent = oembedData.title || `ทวีตโดย @${oembedData.author_name || user.x_username}`;
+        
+        // Extract real text from the blockquote HTML
+        const extracted = extractTweetText(oembedHtml);
+        if (extracted) {
+          finalContent = extracted;
+        } else {
+          finalContent = oembedData.title || `ทวีตโดย @${oembedData.author_name || user.x_username}`;
+        }
       } else {
         oembedHtml = `<blockquote class="twitter-tweet" data-theme="dark"><p lang="th" dir="ltr">เปิดทวีตบน X.com เพื่อร่วมกดไลค์หรือรีโพสได้ทันที</p>&mdash; @${user.x_username} <a href="${url}">คลิกที่นี่เพื่อเปิดทวีต</a></blockquote>`;
       }
