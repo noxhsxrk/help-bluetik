@@ -765,34 +765,59 @@ export default function App() {
                         <div
                           key={post.id}
                           id={`post-${post.id}`}
-                          className={`bg-surface-dark border p-5 rounded-md flex flex-col gap-4 transition-all duration-300 relative ${isDone ? 'opacity-60 border-border-dark' : 'border-border-dark hover:border-zinc-700'
-                            }`}
+                          className={`bg-[#000000] border p-5 rounded-xl flex flex-col gap-4 transition-all duration-300 relative ${
+                            isDone ? 'opacity-70 border-zinc-900' : 'border-zinc-800 hover:border-zinc-700'
+                          }`}
                         >
-                          {isDone && (
-                            <span className="absolute top-4 right-4 text-[10px] uppercase font-bold border border-primary text-primary px-2 py-0.5 rounded-sm">
-                              ✓ ช่วยเหลือแล้ว
-                            </span>
-                          )}
+                          {/* Header */}
+                          <div className="flex justify-between items-start w-full">
+                            <div className="flex items-center gap-3">
+                              <img className="w-10 h-10 rounded-full object-cover border border-zinc-900" src={post.avatar} alt="Avatar" />
+                              <div className="flex flex-col">
+                                <h4 className="font-bold text-sm text-white flex items-center gap-1.5 hover:underline cursor-pointer">
+                                  {post.x_name}
+                                  {/* Twitter Blue Verified Tick */}
+                                  <svg className="w-4 h-4 text-[#1d9bf0] fill-current" viewBox="0 0 24 24">
+                                    <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
+                                  </svg>
+                                </h4>
+                                <p className="text-xs text-zinc-500">@{post.x_username}</p>
+                              </div>
+                            </div>
 
-                          <div className="flex items-center gap-4">
-                            <img className="w-10 h-10 rounded-full" src={post.avatar} alt="Avatar" />
-                            <div>
-                              <h4 className="font-bold text-sm flex items-center gap-1">
-                                {post.x_name}
-                                <span className="text-primary text-xs">✓</span>
-                              </h4>
-                              <p className="text-xs text-muted-zinc">@{post.x_username}</p>
+                            {/* X Logo Icon & Helpers */}
+                            <div className="flex items-center gap-3">
+                              {isDone && (
+                                <span className="text-[9px] uppercase font-extrabold tracking-wider border border-[#1d9bf0] text-[#1d9bf0] bg-[#1d9bf0]/5 px-2 py-0.5 rounded-sm">
+                                  ✓ ช่วยเหลือแล้ว
+                                </span>
+                              )}
+                              <svg className="w-4 h-4 text-white fill-current opacity-60" viewBox="0 0 24 24">
+                                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                              </svg>
                             </div>
                           </div>
 
-                          {post.oembed_html ? (
-                            <div
-                              dangerouslySetInnerHTML={{ __html: post.oembed_html }}
-                              className="w-full my-1 border border-border-dark bg-bg-dark/30 rounded-sm overflow-hidden p-1 min-h-[100px] flex justify-center text-sm"
-                            />
-                          ) : (
-                            <p className="text-sm leading-relaxed text-ink-light whitespace-pre-wrap">{post.content}</p>
-                          )}
+                          {/* Content Body (Styled like native Tweet) */}
+                          <div className="text-white text-sm leading-relaxed whitespace-pre-wrap font-sans">
+                            {post.content.split(/(\s+)/).map((word, idx) => {
+                              if (word.startsWith('#')) {
+                                return <span key={idx} className="text-[#1d9bf0] hover:underline cursor-pointer font-medium">{word}</span>;
+                              }
+                              if (word.startsWith('@')) {
+                                return <span key={idx} className="text-[#1d9bf0] hover:underline cursor-pointer font-medium">{word}</span>;
+                              }
+                              if (word.startsWith('http://') || word.startsWith('https://')) {
+                                return <span key={idx} className="text-[#1d9bf0] hover:underline cursor-pointer break-all font-medium">{word}</span>;
+                              }
+                              return word;
+                            })}
+                          </div>
+
+                          {/* Tweet Timestamp metadata */}
+                          <div className="text-zinc-500 text-[10px] pb-1">
+                            {new Date(post.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} · {new Date(post.created_at).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' })} · <span className="text-[#1d9bf0] font-semibold">X Verify Collab</span>
+                          </div>
 
                           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 border-t border-border-dark pt-3">
                             <button
