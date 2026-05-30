@@ -295,7 +295,6 @@ export default function App() {
       setCurrentUser(null);
       setOnboardXUsername('');
       setOnboardXName('');
-      setOnboardXBio('');
       triggerToast('ลงชื่อออกจากระบบเรียบร้อย', 'success');
       window.location.hash = '#login';
     } catch {
