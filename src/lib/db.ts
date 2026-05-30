@@ -51,12 +51,84 @@ export interface TrendingHashtag {
   is_hot?: boolean;
 }
 
-// --- FALLBACK ARRAYS (used only if Supabase is unreachable) ---
-let _users: User[] = [];
-let _posts: Post[] = [];
+// --- FALLBACK ARRAYS (used only if Supabase is unreachable or empty) ---
+let _users: User[] = [
+  {
+    id: 'u_mock1',
+    x_username: 'ton_creator',
+    x_name: 'ต้น คอนเทนต์ครีเอเตอร์',
+    role: 'member',
+    avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=ton',
+    bio: 'แชร์เทคนิคทำคอนเทนต์สร้างรายได้บน X.com',
+    help_score: 45
+  },
+  {
+    id: 'u_mock2',
+    x_username: 'pook_tech',
+    x_name: 'ปุ๊ก พีอาร์สายเทคโนโลยี',
+    role: 'member',
+    avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=pook',
+    bio: 'อัปเดตเทรนด์ AI และนวัตกรรมใหม่ๆ',
+    help_score: 32
+  },
+  {
+    id: 'u_mock3',
+    x_username: 'ice_travel',
+    x_name: 'ไอซ์ พาเที่ยวรอบโลก',
+    role: 'member',
+    avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=ice',
+    bio: 'รีวิวทริปท่องเที่ยว ถ่ายภาพสวยๆ',
+    help_score: 28
+  }
+];
+
+let _posts: Post[] = [
+  {
+    id: 'p_mock1',
+    user_id: 'u_mock1',
+    x_username: 'ton_creator',
+    x_name: 'ต้น คอนเทนต์ครีเอเตอร์',
+    avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=ton',
+    content: 'แบ่งปันเทคนิคการสร้างฐานผู้ติดตามใน X เริ่มต้นจากศูนย์จนถึงแสนคนในปี 2026 ใครสนใจกดไลค์รีทวีตไว้เลยครับ เดี๋ยวมาต่อเธรด',
+    x_post_id: '1789123456789',
+    x_post_url: 'https://x.com/ton_creator/status/1789123456789',
+    posted_via: 'link',
+    created_at: Date.now() - 30 * 60 * 1000,
+    is_active: true,
+    oembed_html: `<blockquote class="twitter-tweet" data-theme="dark"><p lang="th" dir="ltr">แบ่งปันเทคนิคการสร้างฐานผู้ติดตามใน X เริ่มต้นจากศูนย์จนถึงแสนคนในปี 2026 ใครสนใจกดไลค์รีทวีตไว้เลยครับ เดี๋ยวมาต่อเธรด</p>&mdash; ต้น คอนเทนต์ครีเอเตอร์ (@ton_creator) <a href="https://x.com/ton_creator/status/1789123456789">May 30, 2026</a></blockquote>`
+  },
+  {
+    id: 'p_mock2',
+    user_id: 'u_mock2',
+    x_username: 'pook_tech',
+    x_name: 'ปุ๊ก พีอาร์สายเทคโนโลยี',
+    avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=pook',
+    content: 'วันนี้มาสรุปฟีเจอร์ใหม่ของวงการ AI ที่น่าจับตามองในเดือนนี้ สรุปเข้าใจง่ายใน 5 ข้ออ่านจบใน 1 นาทีครับ!',
+    x_post_id: '1789123456790',
+    x_post_url: 'https://x.com/pook_tech/status/1789123456790',
+    posted_via: 'link',
+    created_at: Date.now() - 2 * 3600 * 1000,
+    is_active: true,
+    oembed_html: `<blockquote class="twitter-tweet" data-theme="dark"><p lang="th" dir="ltr">วันนี้มาสรุปฟีเจอร์ใหม่ของวงการ AI ที่น่าจับตามองในเดือนนี้ สรุปเข้าใจง่ายใน 5 ข้ออ่านจบใน 1 นาทีครับ!</p>&mdash; ปุ๊ก พีอาร์สายเทคโนโลยี (@pook_tech) <a href="https://x.com/pook_tech/status/1789123456790">May 30, 2026</a></blockquote>`
+  },
+  {
+    id: 'p_mock3',
+    user_id: 'u_mock3',
+    x_username: 'ice_travel',
+    x_name: 'ไอซ์ พาเที่ยวรอบโลก',
+    avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=ice',
+    content: 'แจกแพลนเที่ยวสวิตเซอร์แลนด์ 8 วัน 7 คืน งบประหยัดแต่ได้รูปสวยปังทุกมุม เซฟเก็บไว้ตามรอยกันได้เลยน้า',
+    x_post_id: '1789123456791',
+    x_post_url: 'https://x.com/ice_travel/status/1789123456791',
+    posted_via: 'link',
+    created_at: Date.now() - 5 * 3600 * 1000,
+    is_active: true,
+    oembed_html: `<blockquote class="twitter-tweet" data-theme="dark"><p lang="th" dir="ltr">แจกแพลนเที่ยวสวิตเซอร์แลนด์ 8 วัน 7 คืน งบประหยัดแต่ได้รูปสวยปังทุกมุม เซฟเก็บไว้ตามรอยกันได้เลยน้า</p>&mdash; ไอซ์ พาเที่ยวรอบโลก (@ice_travel) <a href="https://x.com/ice_travel/status/1789123456791">May 30, 2026</a></blockquote>`
+  }
+];
+
 let _interactions: Interaction[] = [];
 let _cooldowns: Record<string, number> = {};
-
 let _trends: TrendingHashtag[] = [];
 
 export const DB = {
@@ -268,6 +340,14 @@ export const DB = {
   async getActivePosts(): Promise<Post[]> {
     const twelveHours = 12 * 60 * 60 * 1000;
     const cutoff = Date.now() - twelveHours;
+
+    // Dynamically shift mock posts' created_at so they stay fresh within 12 hours
+    if (_posts && _posts.length >= 3) {
+      _posts[0].created_at = Date.now() - 30 * 60 * 1000; // 30 mins ago
+      _posts[1].created_at = Date.now() - 2 * 3600 * 1000; // 2 hours ago
+      _posts[2].created_at = Date.now() - 5 * 3600 * 1000; // 5 hours ago
+    }
+
     try {
       const { data, error } = await supabase
         .from('posts')
@@ -276,11 +356,11 @@ export const DB = {
         .gt('created_at', cutoff)
         .order('created_at', { ascending: false });
       if (error || !data || data.length === 0) {
-        return _posts.filter(p => p.is_active && (Date.now() - p.created_at < twelveHours));
+        return _posts;
       }
       return data;
     } catch {
-      return _posts.filter(p => p.is_active && (Date.now() - p.created_at < twelveHours));
+      return _posts;
     }
   },
 

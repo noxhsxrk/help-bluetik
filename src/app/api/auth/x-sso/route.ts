@@ -35,7 +35,14 @@ export async function POST(request: Request) {
     }
 
     // Mode 2: Link X Username during Onboarding Form submit
-    if (xUsername) {
+    if (xUsername !== undefined) {
+      if (!xUsername || !xUsername.trim()) {
+        return NextResponse.json({ error: 'กรุณาระบุชื่อผู้ใช้งาน X (Username)' }, { status: 400 });
+      }
+      if (!xName || !xName.trim()) {
+        return NextResponse.json({ error: 'กรุณาระบุชื่อโปรไฟล์ X (Profile Name)' }, { status: 400 });
+      }
+
       const cookieStore = await cookies();
       const userIdCookie = cookieStore.get('tb_session_user_id');
       if (!userIdCookie) {

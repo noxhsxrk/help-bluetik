@@ -140,34 +140,26 @@ export default function App() {
     };
   }, []);
 
-  // Hydrate Twitter oEmbed blockquotes using platform script
+  // Load Twitter widgets script once on mount
   useEffect(() => {
-    const script = document.createElement('script');
-    script.src = 'https://platform.twitter.com/widgets.js';
-    script.async = true;
-    script.charset = 'utf-8';
-    document.body.appendChild(script);
-    return () => {
-      const existingScript = document.querySelector('script[src="https://platform.twitter.com/widgets.js"]');
-      if (existingScript) {
-        existingScript.remove();
-      }
-    };
+    const existingScript = document.querySelector('script[src="https://platform.twitter.com/widgets.js"]');
+    if (!existingScript) {
+      const script = document.createElement('script');
+      script.src = 'https://platform.twitter.com/widgets.js';
+      script.async = true;
+      script.charset = 'utf-8';
+      document.body.appendChild(script);
+    }
+  }, []);
+
+  // Hydrate Twitter oEmbed blockquotes whenever posts change
+  useEffect(() => {
+    // @ts-ignore
+    if (window.twttr && window.twttr.widgets) {
+      // @ts-ignore
+      window.twttr.widgets.load();
+    }
   }, [posts]);
-
-  // Update cooldown strings
-  useEffect(() => {
-    if (!currentUser) return;
-
-    const fetchCooldown = async () => {
-      try {
-        const res = await fetch('/api/posts');
-        const data = await res.json();
-      } catch { }
-    };
-
-    fetchCooldown();
-  }, [currentUser, posts]);
 
   // Handle Hash updates
   useEffect(() => {
@@ -249,8 +241,12 @@ export default function App() {
 
   // Handle Onboarding form submit (Links custom X handle and triggers admin request)
   const handleOnboardSubmit = async () => {
-    if (!onboardXUsername) {
-      triggerToast('กรุณาระบุชื่อผู้ใช้งาน X.com ของคุณ', 'error');
+    if (!onboardXUsername.trim()) {
+      triggerToast('กรุณาระบุชื่อผู้ใช้งาน X.com (Username) ของคุณ', 'error');
+      return;
+    }
+    if (!onboardXName.trim()) {
+      triggerToast('กรุณาระบุชื่อโปรไฟล์ X.com (Profile Name) ของคุณ', 'error');
       return;
     }
 
@@ -259,8 +255,8 @@ export default function App() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          xUsername: onboardXUsername,
-          xName: onboardXName || onboardXUsername,
+          xUsername: onboardXUsername.trim(),
+          xName: onboardXName.trim(),
           bio: ''
         })
       });
@@ -595,22 +591,28 @@ export default function App() {
             </p>
 
             <div className="text-left mb-4">
-              <label className="block text-xs uppercase tracking-wider text-muted-zinc font-semibold mb-2">ป้อน X Handle / Username (ไม่ต้องใส่ @)</label>
+              <label className="block text-xs uppercase tracking-wider text-muted-zinc font-semibold mb-2">
+                ป้อน X Handle / Username <span className="text-red-500 font-bold">*</span> (ไม่ต้องใส่ @)
+              </label>
               <input
                 type="text"
                 className="w-full bg-bg-dark border border-border-dark p-2.5 rounded-sm text-ink-light focus:outline-none focus:border-primary text-sm"
                 placeholder="เช่น NongVerify"
+                required
                 value={onboardXUsername}
                 onChange={e => setOnboardXUsername(e.target.value)}
               />
             </div>
 
             <div className="text-left mb-4">
-              <label className="block text-xs uppercase tracking-wider text-muted-zinc font-semibold mb-2">ชื่อสำหรับแสดงบนโปรไฟล์ X (Profile Name)</label>
+              <label className="block text-xs uppercase tracking-wider text-muted-zinc font-semibold mb-2">
+                ชื่อสำหรับแสดงบนโปรไฟล์ X <span className="text-red-500 font-bold">*</span> (Profile Name)
+              </label>
               <input
                 type="text"
                 className="w-full bg-bg-dark border border-border-dark p-2.5 rounded-sm text-ink-light focus:outline-none focus:border-primary text-sm"
                 placeholder="เช่น น้องติ๊กฟ้าน่ารัก"
+                required
                 value={onboardXName}
                 onChange={e => setOnboardXName(e.target.value)}
               />
