@@ -12,6 +12,16 @@ export async function GET() {
     const activePosts = await DB.getActivePosts();
     const interactions = await DB.getInteractions();
 
+    // Dynamically repair old posts' content on the fly from their oembed_html
+    activePosts.forEach(post => {
+      if (post.oembed_html && (post.content.startsWith('ทวีตโดย @') || post.content.startsWith('โพสทวีตรหัส'))) {
+        const extracted = extractTweetText(post.oembed_html);
+        if (extracted) {
+          post.content = extracted;
+        }
+      }
+    });
+
     if (!userId) {
       return NextResponse.json({ posts: activePosts });
     }
@@ -36,24 +46,25 @@ export async function GET() {
     activePosts.sort((a, b) => {
       const aDone = userInteractedPostIds.has(a.id);
       const bDone = userInteractedPostIds.has(b.id);
-      
+
       if (aDone && !bDone) return 1;
       if (!aDone && bDone) return -1;
-      
+
       return b.created_at - a.created_at; // Newer posts first for same interaction state
     });
 
-    return NextResponse.json({ 
-      posts: activePosts, 
+    return NextResponse.json({
+      posts: activePosts,
       interactedIds: Array.from(userInteractedPostIds),
-      userInteractions 
+      userInteractions
     });
   } catch (error) {
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
 
-function extractTweetText(html: string): string {
+function
+  extractTweetText(html: string): string {
   const match = html.match(/<p[^>]*>([\s\S]*?)<\/p>/i);
   if (!match) return '';
   // Decode HTML entities and strip nested HTML tags like <a>
@@ -129,7 +140,7 @@ export async function POST(request: Request) {
       if (oembedRes.ok) {
         const oembedData = await oembedRes.json();
         oembedHtml = oembedData.html || '';
-        
+
         // Extract real text from the blockquote HTML
         const extracted = extractTweetText(oembedHtml);
         if (extracted) {
