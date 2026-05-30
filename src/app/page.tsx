@@ -201,44 +201,32 @@ export default function App() {
         const trendsData = await trendsRes.json();
         setTrends(trendsData.trends || []);
 
-        // Fetch users for leaderboard & admin panel
-        const adminUsersRes = await fetch('/api/admin/users');
-        const adminUsersData = await adminUsersRes.json();
-        setPendingUsers(adminUsersData.pending || []);
+        // Fetch users for leaderboard from real DB
+        const usersRes = await fetch('/api/users');
+        const usersData = await usersRes.json();
+        const members: User[] = usersData.users || [];
+        setLeaderboardUsers(members.sort((a, b) => b.help_score - a.help_score));
 
-        // Fetch leaderboard ranking
-        const mockMembers: User[] = [
-          { id: 'u1', x_username: 'Srettha_TH', x_name: 'Srettha Tech', role: 'member', help_score: 45, bio: 'Tech investor & Content Creator. Sharing insights on startup ecosystem.', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80' },
-          { id: 'u2', x_username: 'KhunMeme', x_name: 'มีมราชา', role: 'member', help_score: 92, bio: 'ราชาแห่งการปั่นมีมติ๊กฟ้า ขำขันรายวันสไตล์คนทำงาน.', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80' },
-          { id: 'u3', x_username: 'Jane_CryptoTH', x_name: 'Jane Web3', role: 'member', help_score: 30, bio: 'Crypto analyst & Trader. Building the Thai crypto community.', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&auto=format&fit=crop&q=80' },
-          { id: 'u5', x_username: 'AdminX', x_name: 'แอดมินติ๊กฟ้า', role: 'admin', help_score: 120, bio: 'ผู้พัฒนาแพลตฟอร์ม "ติ๊กฟ้าช่วยติ๊กฟ้า" ยินดีต้อนรับทุกคนครับ.', avatar: 'https://images.unsplash.com/photo-1628157582853-a796fa650a6a?w=100&auto=format&fit=crop&q=80' }
-        ];
-
-        // Merge current user score
-        const selfInMock = mockMembers.find(m => m.id === currentUser.id);
-        if (selfInMock) {
-          selfInMock.help_score = currentUser.help_score;
-        } else if (currentUser.role !== 'pending') {
-          mockMembers.push(currentUser);
-        }
-
-        setLeaderboardUsers(mockMembers.sort((a, b) => b.help_score - a.help_score));
-
-        // Update statistics
+        // Fetch pending count
+        const adminRes = await fetch('/api/admin/users');
+        const adminData = await adminRes.json();
+        setPendingUsers(adminData.pending || []);
         setAdminStats({
-          pending: adminUsersData.pending?.length || 0,
-          members: mockMembers.length,
+          pending: adminData.pending?.length || 0,
+          members: adminData.members || 0,
           posts: postsData.posts?.length || 0,
-          helps: 12
+          helps: 0
         });
 
-      } catch (err) {
-        // Fallback loading error
+      } catch {
+        // network error — fail silently
       }
     };
 
     loadData();
   }, [currentUser, currentView]);
+
+
 
   // Handle Google SSO login (100% Free SSO via Supabase Google OAuth)
   const handleGoogleLogin = async () => {
