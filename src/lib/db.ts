@@ -57,13 +57,7 @@ let _posts: Post[] = [];
 let _interactions: Interaction[] = [];
 let _cooldowns: Record<string, number> = {};
 
-let _trends: TrendingHashtag[] = [
-  { id: 't1', hashtag: '#ข่าวไทย', tweet_volume: 24500, trend_score: 1.25, country: 'TH', detected_at: Date.now(), expires_at: Date.now() + 3600 * 1000 },
-  { id: 't2', hashtag: '#SundayVibes', tweet_volume: 18200, trend_score: 0.95, country: 'TH', detected_at: Date.now(), expires_at: Date.now() + 3600 * 1000 },
-  { id: 't3', hashtag: '#ติ๊กฟ้าแลกฟอล', tweet_volume: 32000, trend_score: 1.5, country: 'TH', detected_at: Date.now(), expires_at: Date.now() + 3600 * 1000 },
-  { id: 't4', hashtag: '#ของดีเมืองไทย', tweet_volume: 12100, trend_score: 0.8, country: 'TH', detected_at: Date.now(), expires_at: Date.now() + 3600 * 1000 },
-  { id: 't5', hashtag: '#แอดมินใจดี', tweet_volume: 9500, trend_score: 0.7, country: 'TH', detected_at: Date.now(), expires_at: Date.now() + 3600 * 1000 }
-];
+let _trends: TrendingHashtag[] = [];
 
 export const DB = {
   // --- USER METHODS ---

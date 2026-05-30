@@ -39,7 +39,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
     }
 
-    const approvedUser = await DB.updateUserRole(userId, 'member', adminUser.x_username);
+    const approvedUser = await DB.updateUserRole(userId, 'member', 'admin');
     if (!approvedUser) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }

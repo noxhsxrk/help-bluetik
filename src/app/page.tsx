@@ -42,7 +42,7 @@ export default function App() {
 
   // Input states
   const [googleEmailInput, setGoogleEmailInput] = useState('');
-  
+
   // Onboarding states
   const [onboardXUsername, setOnboardXUsername] = useState('');
   const [onboardXName, setOnboardXName] = useState('');
@@ -130,7 +130,7 @@ export default function App() {
               window.location.hash = '#dashboard';
             }
           }
-        } catch {}
+        } catch { }
       }
     });
 
@@ -162,7 +162,7 @@ export default function App() {
       try {
         const res = await fetch('/api/posts');
         const data = await res.json();
-      } catch {}
+      } catch { }
     };
 
     fetchCooldown();
@@ -320,7 +320,7 @@ export default function App() {
       if (data.success) {
         triggerToast('ลงทะเบียนแชร์ทวีตขึ้นบอร์ดแลกเปลี่ยนยอดสำเร็จ!', 'success');
         setLinkInput('');
-        
+
         // Refresh posts list
         const postsRes = await fetch('/api/posts');
         const postsData = await postsRes.json();
@@ -368,10 +368,10 @@ export default function App() {
         body: JSON.stringify({ postId, type })
       });
       const data = await res.json();
-      
+
       if (data.success) {
         triggerToast(`บันทึกแต้มสำเร็จ! ได้รับ +${data.pointsAwarded} แต้มจากการช่วยเหลือเพื่อนสมาชิก`, 'success');
-        
+
         if (currentUser) {
           setCurrentUser(prev => prev ? { ...prev, help_score: data.totalScore } : null);
         }
@@ -428,13 +428,13 @@ export default function App() {
       const data = await res.json();
       if (data.success) {
         triggerToast(`อนุมัติสิทธิ์ติ๊กฟ้าแก่ผู้ใช้ @${data.user.x_username} สำเร็จ!`, 'success');
-        
+
         const card = document.getElementById(`pending-card-${userId}`);
         if (card) {
           card.style.opacity = '0';
           card.style.transform = 'translateY(-10px)';
         }
-        
+
         setTimeout(() => {
           setPendingUsers(prev => prev.filter(u => u.id !== userId));
         }, 300);
@@ -454,7 +454,7 @@ export default function App() {
       const data = await res.json();
       if (data.success) {
         triggerToast('ปฏิเสธการขอสมัครและลบโปรไฟล์ดังกล่าวออกเรียบร้อย', 'success');
-        
+
         const card = document.getElementById(`pending-card-${userId}`);
         if (card) {
           card.style.opacity = '0';
@@ -495,15 +495,14 @@ export default function App() {
 
   return (
     <div className="min-h-screen flex flex-col bg-bg-dark text-ink-light">
-      
+
       {/* TOAST NOTIFIER SYSTEM */}
       <div className="fixed bottom-6 right-6 flex flex-col gap-2 z-[1000] max-w-sm w-full">
         {toasts.map(t => (
-          <div 
-            key={t.id} 
-            className={`flex items-center justify-between bg-surface-dark border border-border-dark p-4 rounded-sm shadow-2xl transition-all duration-300 border-l-4 ${
-              t.type === 'error' ? 'border-l-red-500' : t.type === 'success' ? 'border-l-green-500' : 'border-l-primary'
-            }`}
+          <div
+            key={t.id}
+            className={`flex items-center justify-between bg-surface-dark border border-border-dark p-4 rounded-sm shadow-2xl transition-all duration-300 border-l-4 ${t.type === 'error' ? 'border-l-red-500' : t.type === 'success' ? 'border-l-green-500' : 'border-l-primary'
+              }`}
           >
             <span className="text-sm font-medium pr-4">{t.msg}</span>
             <button className="text-muted-zinc hover:text-ink-light font-bold" onClick={() => setToasts(prev => prev.filter(x => x.id !== t.id))}>×</button>
@@ -518,30 +517,30 @@ export default function App() {
             <div className="brand" onClick={() => { window.location.hash = '#dashboard'; setCurrentView('dashboard'); }}>
               <h1 className="text-2xl font-bold cursor-pointer hover:opacity-90">ติ๊กฟ้าช่วยติ๊กฟ้า<span className="text-primary">.</span></h1>
             </div>
-            
+
             <nav className="flex items-center gap-6">
-              <span 
+              <span
                 className={`text-sm font-medium cursor-pointer transition-colors ${currentView === 'dashboard' ? 'text-ink-light' : 'text-muted-zinc hover:text-ink-light'}`}
                 onClick={() => { window.location.hash = '#dashboard'; setCurrentView('dashboard'); }}
               >
                 Dashboard
               </span>
-              <span 
+              <span
                 className={`text-sm font-medium cursor-pointer transition-colors ${currentView === 'leaderboard' ? 'text-ink-light' : 'text-muted-zinc hover:text-ink-light'}`}
                 onClick={() => { window.location.hash = '#leaderboard'; setCurrentView('leaderboard'); }}
               >
                 Leaderboard
               </span>
 
-              
+
               <div className="flex items-center gap-2 border border-border-dark px-3 py-1 bg-surface-dark rounded-sm text-sm">
                 <img className="w-5 h-5 rounded-full" src={currentUser.avatar} alt="Avatar" />
                 <span className="font-semibold text-xs">@{currentUser.x_username}</span>
                 <span className="text-primary text-xs">✓</span>
               </div>
-              
-              <button 
-                className="text-sm font-medium text-red-500 hover:text-red-400 transition-colors" 
+
+              <button
+                className="text-sm font-medium text-red-500 hover:text-red-400 transition-colors"
                 onClick={handleSignOut}
               >
                 Sign Out
@@ -552,7 +551,7 @@ export default function App() {
       )}
 
       <main className="flex-1 max-w-7xl w-full mx-auto p-6 flex flex-col gap-6">
-        
+
         {/* ==================== VIEW 1. LOGIN SCREEN ==================== */}
         {!currentUser && (
           <section className="max-w-md w-full mx-auto my-12 border border-border-dark bg-surface-dark p-8 rounded-md text-center">
@@ -562,11 +561,11 @@ export default function App() {
             </p>
 
             <div className="flex flex-col gap-4">
-              <button 
+              <button
                 className="w-full bg-white text-black hover:bg-neutral-200 font-bold py-3 px-4 rounded-sm transition-colors cursor-pointer text-sm flex items-center justify-center gap-2"
                 onClick={handleGoogleLogin}
               >
-                🌐 ลงชื่อใช้งานด้วย Google SSO (ฟรี)
+                ลงชื่อใช้งานด้วย Google
               </button>
             </div>
 
@@ -586,8 +585,8 @@ export default function App() {
 
             <div className="text-left mb-4">
               <label className="block text-xs uppercase tracking-wider text-muted-zinc font-semibold mb-2">ป้อน X Handle / Username (ไม่ต้องใส่ @)</label>
-              <input 
-                type="text" 
+              <input
+                type="text"
                 className="w-full bg-bg-dark border border-border-dark p-2.5 rounded-sm text-ink-light focus:outline-none focus:border-primary text-sm"
                 placeholder="เช่น NongVerify"
                 value={onboardXUsername}
@@ -597,8 +596,8 @@ export default function App() {
 
             <div className="text-left mb-4">
               <label className="block text-xs uppercase tracking-wider text-muted-zinc font-semibold mb-2">ชื่อสำหรับแสดงบนโปรไฟล์ X (Profile Name)</label>
-              <input 
-                type="text" 
+              <input
+                type="text"
                 className="w-full bg-bg-dark border border-border-dark p-2.5 rounded-sm text-ink-light focus:outline-none focus:border-primary text-sm"
                 placeholder="เช่น น้องติ๊กฟ้าน่ารัก"
                 value={onboardXName}
@@ -608,7 +607,7 @@ export default function App() {
 
             <div className="text-left mb-6">
               <label className="block text-xs uppercase tracking-wider text-muted-zinc font-semibold mb-2">ประวัติการทำคอนเทนต์สั้นๆ (Bio)</label>
-              <textarea 
+              <textarea
                 className="w-full bg-bg-dark border border-border-dark p-2.5 rounded-sm text-ink-light focus:outline-none focus:border-primary text-sm h-20 resize-none"
                 placeholder="รีวิวอาหาร ท่องเที่ยว ถ่ายภาพ ฝากเนื้อฝากตัวด้วยนะคะ..."
                 value={onboardXBio}
@@ -616,14 +615,14 @@ export default function App() {
               />
             </div>
 
-            <button 
+            <button
               className="w-full bg-white text-black hover:bg-neutral-200 font-bold py-3 px-4 rounded-sm transition-colors cursor-pointer text-sm"
               onClick={handleOnboardSubmit}
             >
               ผูกบัญชีและยื่นขอตรวจสอบแรกเข้า
             </button>
 
-            <button 
+            <button
               className="w-full mt-4 border border-border-dark hover:bg-bg-dark text-red-500 font-semibold py-2 px-4 rounded-sm transition-colors cursor-pointer text-xs"
               onClick={handleSignOut}
             >
@@ -651,7 +650,7 @@ export default function App() {
               💡 <span className="font-semibold text-primary">คำแนะนำสำหรับการทดสอบ:</span> สมาชิกสามารถกดที่เมนู **"เปิดระบบแอดมินหลังบ้าน"** ด้านล่างสุดของหน้าจอ (Footer) เพื่อจำลองสิทธิ์เป็น Admin และเข้าไปกด Approve โปรไฟล์ของตัวท่านเองได้ในหน้าระบบควบคุมผู้ดูแล!
             </div>
 
-            <button 
+            <button
               className="w-full border border-border-dark hover:bg-surface-dark py-3 rounded-sm font-semibold transition-colors cursor-pointer text-sm"
               onClick={checkSession}
             >
@@ -663,10 +662,10 @@ export default function App() {
         {/* ==================== VIEW 3. DASHBOARD MAIN VIEW ==================== */}
         {currentUser && currentUser.x_username && currentUser.role !== 'pending' && currentView === 'dashboard' && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
-            
+
             {/* LEFT FEED & COMPOSER */}
             <div className="md:col-span-2 flex flex-col gap-6">
-              
+
               {/* Composer - Link Only */}
               <div className="bg-surface-dark border border-border-dark p-6 rounded-md">
                 <h3 className="text-lg font-bold border-b border-border-dark pb-3 mb-4 flex items-center gap-2">
@@ -679,8 +678,8 @@ export default function App() {
                 <div className="flex flex-col gap-4">
                   <div>
                     <label className="block text-xs uppercase tracking-wider text-muted-zinc font-semibold mb-2">ลิงก์โพสทวีตจาก X.com (Twitter)</label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       className="w-full bg-bg-dark border border-border-dark p-3 rounded-sm text-sm text-ink-light focus:outline-none focus:border-primary"
                       placeholder="https://x.com/username/status/1234567890..."
                       value={linkInput}
@@ -692,7 +691,7 @@ export default function App() {
                     <span className="text-xs text-muted-zinc" id="post-cooldown-timer">
                       {cooldownString}
                     </span>
-                    <button 
+                    <button
                       className="bg-primary hover:bg-primary-hover text-ink-light font-bold text-xs uppercase tracking-wider py-2.5 px-5 rounded-sm transition-colors cursor-pointer"
                       onClick={() => handleSubmitPost(linkInput)}
                     >
@@ -723,12 +722,11 @@ export default function App() {
                     posts.map(post => {
                       const isDone = interactedIds.includes(post.id);
                       return (
-                        <div 
-                          key={post.id} 
+                        <div
+                          key={post.id}
                           id={`post-${post.id}`}
-                          className={`bg-surface-dark border p-5 rounded-md flex flex-col gap-4 transition-all duration-300 relative ${
-                            isDone ? 'opacity-60 border-border-dark' : 'border-border-dark hover:border-zinc-700'
-                          }`}
+                          className={`bg-surface-dark border p-5 rounded-md flex flex-col gap-4 transition-all duration-300 relative ${isDone ? 'opacity-60 border-border-dark' : 'border-border-dark hover:border-zinc-700'
+                            }`}
                         >
                           {isDone && (
                             <span className="absolute top-4 right-4 text-[10px] uppercase font-bold border border-primary text-primary px-2 py-0.5 rounded-sm">
@@ -748,8 +746,8 @@ export default function App() {
                           </div>
 
                           {post.oembed_html ? (
-                            <div 
-                              dangerouslySetInnerHTML={{ __html: post.oembed_html }} 
+                            <div
+                              dangerouslySetInnerHTML={{ __html: post.oembed_html }}
                               className="w-full my-1 border border-border-dark bg-bg-dark/30 rounded-sm overflow-hidden p-1 min-h-[100px] flex justify-center text-sm"
                             />
                           ) : (
@@ -757,25 +755,25 @@ export default function App() {
                           )}
 
                           <div className="grid grid-cols-4 gap-2 border-t border-border-dark pt-3">
-                            <button 
+                            <button
                               className="border border-border-dark hover:border-primary hover:bg-primary/5 text-xs font-semibold py-2 px-1 rounded-sm text-muted-zinc hover:text-primary transition-all cursor-pointer flex justify-center items-center gap-1.5"
                               onClick={() => triggerInteraction(post.id, 'repost')}
                             >
                               🔄 Repost
                             </button>
-                            <button 
+                            <button
                               className="border border-border-dark hover:border-primary hover:bg-primary/5 text-xs font-semibold py-2 px-1 rounded-sm text-muted-zinc hover:text-primary transition-all cursor-pointer flex justify-center items-center gap-1.5"
                               onClick={() => triggerInteraction(post.id, 'like')}
                             >
                               ❤️ Like
                             </button>
-                            <button 
+                            <button
                               className="border border-border-dark hover:border-primary hover:bg-primary/5 text-xs font-semibold py-2 px-1 rounded-sm text-muted-zinc hover:text-primary transition-all cursor-pointer flex justify-center items-center gap-1.5"
                               onClick={() => triggerInteraction(post.id, 'quote')}
                             >
                               💬 Quote
                             </button>
-                            <button 
+                            <button
                               className="border border-border-dark hover:border-primary hover:bg-primary/5 text-xs font-semibold py-2 px-1 rounded-sm text-muted-zinc hover:text-primary transition-all cursor-pointer flex justify-center items-center gap-1.5"
                               onClick={() => triggerInteraction(post.id, 'mention')}
                             >
@@ -793,7 +791,7 @@ export default function App() {
 
             {/* RIGHT SIDEBAR: HASHTAG TREND MONITOR & LEADERBOARD STATS */}
             <div className="flex flex-col gap-6">
-              
+
               {/* Trends Card */}
               <div className="bg-surface-dark border border-border-dark p-5 rounded-md">
                 <div className="flex justify-between items-center border-b border-border-dark pb-3 mb-4">
@@ -805,8 +803,8 @@ export default function App() {
                 </p>
                 <div className="flex flex-col gap-3">
                   {trends.map(t => (
-                    <div 
-                      key={t.id} 
+                    <div
+                      key={t.id}
                       className="flex justify-between items-center border-b border-border-dark/30 pb-2.5 cursor-pointer hover:opacity-85"
                       onClick={() => copyHashtag(t.hashtag)}
                     >
@@ -867,17 +865,16 @@ export default function App() {
               {leaderboardUsers.map((u, i) => {
                 const isSelf = u.id === currentUser.id;
                 return (
-                  <div 
-                    key={u.id} 
-                    className={`flex items-center gap-4 p-4 border rounded-md bg-surface-dark ${
-                      isSelf ? 'border-primary' : 'border-border-dark'
-                    }`}
+                  <div
+                    key={u.id}
+                    className={`flex items-center gap-4 p-4 border rounded-md bg-surface-dark ${isSelf ? 'border-primary' : 'border-border-dark'
+                      }`}
                   >
                     <span className="font-display font-bold text-2xl w-8 text-muted-zinc">{i + 1}</span>
                     <img className="w-10 h-10 rounded-full" src={u.avatar} alt="Avatar" />
                     <div className="flex-1">
                       <h4 className="font-bold text-sm flex items-center gap-1.5">
-                        @{u.x_username} 
+                        @{u.x_username}
                         {isSelf && <span className="text-[9px] uppercase border border-primary text-primary px-1.5 py-0.5 rounded-sm">บัญชีของท่าน</span>}
                       </h4>
                       <p className="text-xs text-muted-zinc">{u.bio}</p>
