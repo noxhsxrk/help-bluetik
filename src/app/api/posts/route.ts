@@ -23,6 +23,16 @@ export async function GET() {
         .map(i => i.post_id)
     );
 
+    const userInteractions: Record<string, string[]> = {};
+    interactions
+      .filter(i => i.helper_user_id === userId)
+      .forEach(i => {
+        if (!userInteractions[i.post_id]) {
+          userInteractions[i.post_id] = [];
+        }
+        userInteractions[i.post_id].push(i.type);
+      });
+
     activePosts.sort((a, b) => {
       const aDone = userInteractedPostIds.has(a.id);
       const bDone = userInteractedPostIds.has(b.id);
@@ -33,7 +43,11 @@ export async function GET() {
       return b.created_at - a.created_at; // Newer posts first for same interaction state
     });
 
-    return NextResponse.json({ posts: activePosts, interactedIds: Array.from(userInteractedPostIds) });
+    return NextResponse.json({ 
+      posts: activePosts, 
+      interactedIds: Array.from(userInteractedPostIds),
+      userInteractions 
+    });
   } catch (error) {
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }

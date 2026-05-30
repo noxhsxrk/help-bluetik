@@ -53,6 +53,7 @@ export default function App() {
   // Data states
   const [posts, setPosts] = useState<Post[]>([]);
   const [interactedIds, setInteractedIds] = useState<string[]>([]);
+  const [userInteractions, setUserInteractions] = useState<Record<string, string[]>>({});
   const [trends, setTrends] = useState<TrendingHashtag[]>([]);
   const [leaderboardUsers, setLeaderboardUsers] = useState<User[]>([]);
   const [pendingUsers, setPendingUsers] = useState<User[]>([]);
@@ -195,6 +196,7 @@ export default function App() {
         const postsData = await postsRes.json();
         setPosts(postsData.posts || []);
         setInteractedIds(postsData.interactedIds || []);
+        setUserInteractions(postsData.userInteractions || {});
 
         // Fetch trends
         const trendsRes = await fetch('/api/trends');
@@ -374,6 +376,7 @@ export default function App() {
           const postsData = await postsRes.json();
           setPosts(postsData.posts || []);
           setInteractedIds(postsData.interactedIds || []);
+          setUserInteractions(postsData.userInteractions || {});
         }, 400);
 
       } else {
@@ -755,28 +758,48 @@ export default function App() {
 
                           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 border-t border-border-dark pt-3">
                             <button
-                              className="border border-border-dark hover:border-primary hover:bg-primary/5 text-xs font-semibold py-2 px-1 rounded-sm text-muted-zinc hover:text-primary transition-all cursor-pointer flex justify-center items-center gap-1.5"
+                              className={`border text-xs font-semibold py-2 px-1 rounded-sm transition-all flex justify-center items-center gap-1.5 ${
+                                userInteractions[post.id]?.includes('repost')
+                                  ? 'border-zinc-800 bg-zinc-900/60 text-zinc-600 cursor-not-allowed opacity-50'
+                                  : 'border-border-dark hover:border-primary hover:bg-primary/5 text-muted-zinc hover:text-primary cursor-pointer'
+                              }`}
                               onClick={() => triggerInteraction(post.id, 'repost')}
+                              disabled={userInteractions[post.id]?.includes('repost')}
                             >
-                              🔄 Repost
+                              {userInteractions[post.id]?.includes('repost') ? '✓ Reposted' : '🔄 Repost'}
                             </button>
                             <button
-                              className="border border-border-dark hover:border-primary hover:bg-primary/5 text-xs font-semibold py-2 px-1 rounded-sm text-muted-zinc hover:text-primary transition-all cursor-pointer flex justify-center items-center gap-1.5"
+                              className={`border text-xs font-semibold py-2 px-1 rounded-sm transition-all flex justify-center items-center gap-1.5 ${
+                                userInteractions[post.id]?.includes('like')
+                                  ? 'border-zinc-800 bg-zinc-900/60 text-zinc-600 cursor-not-allowed opacity-50'
+                                  : 'border-border-dark hover:border-primary hover:bg-primary/5 text-muted-zinc hover:text-primary cursor-pointer'
+                              }`}
                               onClick={() => triggerInteraction(post.id, 'like')}
+                              disabled={userInteractions[post.id]?.includes('like')}
                             >
-                              ❤️ Like
+                              {userInteractions[post.id]?.includes('like') ? '✓ Liked' : '❤️ Like'}
                             </button>
                             <button
-                              className="border border-border-dark hover:border-primary hover:bg-primary/5 text-xs font-semibold py-2 px-1 rounded-sm text-muted-zinc hover:text-primary transition-all cursor-pointer flex justify-center items-center gap-1.5"
+                              className={`border text-xs font-semibold py-2 px-1 rounded-sm transition-all flex justify-center items-center gap-1.5 ${
+                                userInteractions[post.id]?.includes('quote')
+                                  ? 'border-zinc-800 bg-zinc-900/60 text-zinc-600 cursor-not-allowed opacity-50'
+                                  : 'border-border-dark hover:border-primary hover:bg-primary/5 text-muted-zinc hover:text-primary cursor-pointer'
+                              }`}
                               onClick={() => triggerInteraction(post.id, 'quote')}
+                              disabled={userInteractions[post.id]?.includes('quote')}
                             >
-                              💬 Quote
+                              {userInteractions[post.id]?.includes('quote') ? '✓ Quoted' : '💬 Quote'}
                             </button>
                             <button
-                              className="border border-border-dark hover:border-primary hover:bg-primary/5 text-xs font-semibold py-2 px-1 rounded-sm text-muted-zinc hover:text-primary transition-all cursor-pointer flex justify-center items-center gap-1.5"
+                              className={`border text-xs font-semibold py-2 px-1 rounded-sm transition-all flex justify-center items-center gap-1.5 ${
+                                userInteractions[post.id]?.includes('mention')
+                                  ? 'border-zinc-800 bg-zinc-900/60 text-zinc-600 cursor-not-allowed opacity-50'
+                                  : 'border-border-dark hover:border-primary hover:bg-primary/5 text-muted-zinc hover:text-primary cursor-pointer'
+                              }`}
                               onClick={() => triggerInteraction(post.id, 'mention')}
+                              disabled={userInteractions[post.id]?.includes('mention')}
                             >
-                              ✉️ Mention
+                              {userInteractions[post.id]?.includes('mention') ? '✓ Mentioned' : '✉️ Mention'}
                             </button>
                           </div>
                         </div>
