@@ -372,28 +372,24 @@ export default function App() {
       return;
     }
 
-    // Determine points for optimistic update: Repost/Quote = 3, Mention = 2, Like = 1
-    let points = 1;
-    if (type === 'repost' || type === 'quote') points = 3;
-    else if (type === 'mention') points = 2;
+    // 1 point per post per user — only if this is the first action on this post
+    const isFirstActionOnPost = !interactedIds.includes(postId);
+    const points = isFirstActionOnPost ? 1 : 0;
 
     // Save previous state for graceful rollback if API request fails
     const oldUserInteractions = { ...userInteractions };
     const oldHelpScore = currentUser?.help_score || 0;
 
-    // 1. Optimistic Update: Instantly disable button and update state
+    // Optimistic Update: Instantly disable button and update score
     setUserInteractions(prev => {
       const postInts = prev[postId] || [];
       if (!postInts.includes(type)) {
-        return {
-          ...prev,
-          [postId]: [...postInts, type]
-        };
+        return { ...prev, [postId]: [...postInts, type] };
       }
       return prev;
     });
 
-    if (currentUser) {
+    if (currentUser && points > 0) {
       setCurrentUser(prev => prev ? { ...prev, help_score: prev.help_score + points } : null);
     }
 
@@ -424,7 +420,11 @@ export default function App() {
       const data = await res.json();
 
       if (data.success) {
-        triggerToast(`บันทึกแต้มสำเร็จ! ได้รับ +${data.pointsAwarded} แต้มจากการช่วยเหลือเพื่อนสมาชิก`, 'success');
+        if (data.pointsAwarded > 0) {
+          triggerToast(`+${data.pointsAwarded} แต้ม! บันทึกการช่วยเหลือสำเร็จ`, 'success');
+        } else {
+          triggerToast(`บันทึกกิจกรรมแล้ว (แต้มนับแล้วจากอันแรก)`, 'default');
+        }
 
         // Sync with absolute DB score to keep states perfectly aligned
         if (currentUser) {
@@ -436,14 +436,16 @@ export default function App() {
         if (postCard) {
           postCard.style.transform = 'scale(0.98)';
           postCard.style.opacity = '0.7';
+          setTimeout(() => {
+            postCard.style.transform = '';
+            postCard.style.opacity = '';
+          }, 600);
         }
 
-        // Fetch refreshed posts list in background to sync feed order
-        const postsRes = await fetch('/api/posts');
-        const postsData = await postsRes.json();
-        setPosts(postsData.posts || []);
-        setInteractedIds(postsData.interactedIds || []);
-        setUserInteractions(postsData.userInteractions || {});
+        // Update interactedIds locally — avoids feed reorder mid-session so user can still press other buttons
+        setInteractedIds(prev =>
+          prev.includes(postId) ? prev : [...prev, postId]
+        );
 
       } else {
         // Rollback optimistic state if API returned error
