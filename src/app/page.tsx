@@ -46,7 +46,6 @@ export default function App() {
   // Onboarding states
   const [onboardXUsername, setOnboardXUsername] = useState('');
   const [onboardXName, setOnboardXName] = useState('');
-  const [onboardXBio, setOnboardXBio] = useState('');
 
   const [linkInput, setLinkInput] = useState('');
 
@@ -271,7 +270,7 @@ export default function App() {
         body: JSON.stringify({
           xUsername: onboardXUsername,
           xName: onboardXName || onboardXUsername,
-          bio: onboardXBio || 'ครีเอเตอร์สมาชิกพรีเมียม ยินดีที่ได้ร่วมบอร์ดแลกยอดครับ.'
+          bio: ''
         })
       });
       const data = await res.json();
@@ -605,15 +604,6 @@ export default function App() {
               />
             </div>
 
-            <div className="text-left mb-6">
-              <label className="block text-xs uppercase tracking-wider text-muted-zinc font-semibold mb-2">ประวัติการทำคอนเทนต์สั้นๆ (Bio)</label>
-              <textarea
-                className="w-full bg-bg-dark border border-border-dark p-2.5 rounded-sm text-ink-light focus:outline-none focus:border-primary text-sm h-20 resize-none"
-                placeholder="รีวิวอาหาร ท่องเที่ยว ถ่ายภาพ ฝากเนื้อฝากตัวด้วยนะคะ..."
-                value={onboardXBio}
-                onChange={e => setOnboardXBio(e.target.value)}
-              />
-            </div>
 
             <button
               className="w-full bg-white text-black hover:bg-neutral-200 font-bold py-3 px-4 rounded-sm transition-colors cursor-pointer text-sm"
