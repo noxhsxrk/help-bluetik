@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
+import KofiButton from '@/components/KofiButton';
 
 // Isolated Twitter embed component — bypasses React's VDOM to prevent overwriting Twitter's iframe
 function TweetEmbed({ html }: { html: string }) {
@@ -1026,6 +1027,9 @@ export default function App() {
           <p>© 2026 ติ๊กฟ้าช่วยติ๊กฟ้า. All Rights Reserved. แพลตฟอร์มปิดจำลองค่าน้ำใจและความร่วมมือ</p>
         </div>
       </footer>
+
+      {/* Ko-fi Floating Donate Button */}
+      <KofiButton />
 
     </div>
   );
