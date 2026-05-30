@@ -3,6 +3,7 @@
 // It integrates directly with Supabase PostgreSQL in production.
 
 import { supabase } from './supabase';
+import { POST_EXPIRY_MS } from './constants';
 
 export interface User {
   id: string;
@@ -266,8 +267,29 @@ export const DB = {
 
   // --- POST METHODS ---
   async getActivePosts(): Promise<Post[]> {
-    const twelveHours = 12 * 60 * 60 * 1000;
-    const cutoff = Date.now() - twelveHours;
+    const cutoff = Date.now() - POST_EXPIRY_MS;
+
+    // ── On-the-fly Database Cleanup ───────────────────────────
+    // สั่งลบโพสและ interactions ที่หมดอายุ (เก่ากว่า 3 ชั่วโมง) ทันที
+    // ทำแบบ background promise เพื่อไม่ให้หน่วงการตอบสนองผู้ใช้ (non-blocking)
+    try {
+      supabase
+        .from('posts')
+        .delete()
+        .lt('created_at', cutoff)
+        .then(() => {
+          // ลบ interactions ที่ผูกกับโพสหมดอายุหรือเก่ากว่า cutoff ไปด้วย
+          supabase
+            .from('interactions')
+            .delete()
+            .lt('created_at', cutoff)
+            .then(() => {});
+        });
+    } catch {}
+
+    // ทำความสะอาด fallback arrays ในหน่วยความจำ (กรณี Offline/Local Fallback)
+    _posts = _posts.filter(p => p.created_at > cutoff);
+    _interactions = _interactions.filter(i => i.created_at > cutoff);
 
     try {
       const { data, error } = await supabase

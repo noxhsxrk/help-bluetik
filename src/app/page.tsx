@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import KofiButton from '@/components/KofiButton';
+import { POST_COOLDOWN_LABEL, POST_EXPIRY_LABEL } from '@/lib/constants';
 
 // Isolated Twitter embed component — bypasses React's VDOM to prevent overwriting Twitter's iframe
 function TweetEmbed({ html }: { html: string }) {
@@ -36,7 +37,7 @@ function TweetEmbed({ html }: { html: string }) {
       }, 200);
       return () => clearInterval(interval);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);  // Empty deps: only run once on mount. html won't change for a given post.
 
   return (
@@ -97,6 +98,7 @@ export default function App() {
   // Data states
   const [posts, setPosts] = useState<Post[]>([]);
   const [interactedIds, setInteractedIds] = useState<string[]>([]);
+  const [expandedPostIds, setExpandedPostIds] = useState<Set<string>>(new Set());
   const [userInteractions, setUserInteractions] = useState<Record<string, string[]>>({});
   const [trends, setTrends] = useState<TrendingHashtag[]>([]);
   const [leaderboardUsers, setLeaderboardUsers] = useState<User[]>([]);
@@ -154,29 +156,31 @@ export default function App() {
   useEffect(() => {
     checkSession();
 
-    // Auto-login and sync session cookies when returning from Supabase Google SSO
+    // Auto-login and sync session cookies ONLY when user just signed in via Google SSO
+    // (not on TOKEN_REFRESHED which fires on every tab focus)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (session?.user?.email) {
-        try {
-          const res = await fetch('/api/auth/x-sso', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email: session.user.email })
-          });
-          const data = await res.json();
-          if (data.success && data.user) {
-            setCurrentUser(data.user);
-            if (!data.user.x_username) {
-              triggerToast('ลงชื่อเข้าใช้งานสำเร็จ กรุณาผูกบัญชี X เพื่อยื่นขอสิทธิ์แรกเข้า', 'success');
-            } else if (data.user.role === 'pending') {
-              triggerToast('ล็อกอินสำเร็จ โปรไฟล์ของคุณอยู่ระหว่างรออนุมัติสิทธิ์แรกเข้า', 'success');
-            } else {
-              triggerToast(`ยินดีต้อนรับเข้าใช้งาน @${data.user.x_username}`, 'success');
-              window.location.hash = '#dashboard';
-            }
+      if (event !== 'SIGNED_IN') return;
+      if (!session?.user?.email) return;
+
+      try {
+        const res = await fetch('/api/auth/x-sso', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: session.user.email })
+        });
+        const data = await res.json();
+        if (data.success && data.user) {
+          setCurrentUser(data.user);
+          if (!data.user.x_username) {
+            triggerToast('ลงชื่อเข้าใช้งานสำเร็จ กรุณาผูกบัญชี X เพื่อยื่นขอสิทธิ์แรกเข้า', 'success');
+          } else if (data.user.role === 'pending') {
+            triggerToast('ล็อกอินสำเร็จ โปรไฟล์ของคุณอยู่ระหว่างรออนุมัติสิทธิ์แรกเข้า', 'success');
+          } else {
+            triggerToast(`ยินดีต้อนรับเข้าใช้งาน @${data.user.x_username}`, 'success');
+            window.location.hash = '#dashboard';
           }
-        } catch { }
-      }
+        }
+      } catch { }
     });
 
     return () => {
@@ -362,8 +366,8 @@ export default function App() {
     }
   };
 
-  // Trigger social media exchange interaction (like, repost, quote, mention) using free X Web Intents
-  const triggerInteraction = async (postId: string, type: 'repost' | 'like' | 'quote' | 'mention') => {
+  // Trigger help interaction — open tweet on X.com and award 1 point
+  const triggerInteraction = async (postId: string) => {
     const post = posts.find(p => p.id === postId);
     if (!post) return;
 
@@ -372,92 +376,46 @@ export default function App() {
       return;
     }
 
-    // 1 point per post per user — only if this is the first action on this post
-    const isFirstActionOnPost = !interactedIds.includes(postId);
-    const points = isFirstActionOnPost ? 1 : 0;
+    if (interactedIds.includes(postId)) {
+      triggerToast('ช่วยเหลือโพสนี้ไปแล้ว', 'default');
+      return;
+    }
 
-    // Save previous state for graceful rollback if API request fails
-    const oldUserInteractions = { ...userInteractions };
     const oldHelpScore = currentUser?.help_score || 0;
 
-    // Optimistic Update: Instantly disable button and update score
-    setUserInteractions(prev => {
-      const postInts = prev[postId] || [];
-      if (!postInts.includes(type)) {
-        return { ...prev, [postId]: [...postInts, type] };
-      }
-      return prev;
-    });
-
-    if (currentUser && points > 0) {
-      setCurrentUser(prev => prev ? { ...prev, help_score: prev.help_score + points } : null);
+    // Optimistic update
+    setInteractedIds(prev => [...prev, postId]);
+    if (currentUser) {
+      setCurrentUser(prev => prev ? { ...prev, help_score: prev.help_score + 1 } : null);
     }
 
-    // Generate free X Web Intent URL to trigger manual browser action
-    let intentUrl = '';
-    const encodedUrl = encodeURIComponent(post.x_post_url || `https://x.com/${post.x_username}/status/${post.x_post_id}`);
-    if (type === 'repost') {
-      intentUrl = `https://x.com/intent/retweet?tweet_id=${post.x_post_id}`;
-    } else if (type === 'like') {
-      intentUrl = `https://x.com/intent/like?tweet_id=${post.x_post_id}`;
-    } else if (type === 'quote') {
-      intentUrl = `https://x.com/intent/tweet?url=${encodedUrl}`;
-    } else if (type === 'mention') {
-      intentUrl = `https://x.com/intent/tweet?in_reply_to=${post.x_post_id}`;
-    }
-
-    if (intentUrl) {
-      window.open(intentUrl, '_blank');
-      triggerToast(`เปิดหน้าต่าง X.com Intent [${type.toUpperCase()}] สำเร็จ กรุณากดทำรายการแล้วยืนยันรับแต้ม`, 'success');
-    }
+    // Open tweet on X.com
+    const tweetUrl = post.x_post_url || `https://x.com/${post.x_username}/status/${post.x_post_id}`;
+    window.open(tweetUrl, '_blank');
 
     try {
       const res = await fetch('/api/interactions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ postId, type })
+        body: JSON.stringify({ postId })
       });
       const data = await res.json();
 
       if (data.success) {
-        if (data.pointsAwarded > 0) {
-          triggerToast(`+${data.pointsAwarded} แต้ม! บันทึกการช่วยเหลือสำเร็จ`, 'success');
-        } else {
-          triggerToast(`บันทึกกิจกรรมแล้ว (แต้มนับแล้วจากอันแรก)`, 'default');
-        }
-
-        // Sync with absolute DB score to keep states perfectly aligned
+        triggerToast(`+${data.pointsAwarded} แต้ม! ช่วยเหลือ @${post.x_username} สำเร็จ`, 'success');
         if (currentUser) {
           setCurrentUser(prev => prev ? { ...prev, help_score: data.totalScore } : null);
         }
-
-        // Apply visual card feedback
-        const postCard = document.getElementById(`post-${postId}`);
-        if (postCard) {
-          postCard.style.transform = 'scale(0.98)';
-          postCard.style.opacity = '0.7';
-          setTimeout(() => {
-            postCard.style.transform = '';
-            postCard.style.opacity = '';
-          }, 600);
-        }
-
-        // Update interactedIds locally — avoids feed reorder mid-session so user can still press other buttons
-        setInteractedIds(prev =>
-          prev.includes(postId) ? prev : [...prev, postId]
-        );
-
       } else {
-        // Rollback optimistic state if API returned error
-        setUserInteractions(oldUserInteractions);
+        // Rollback
+        setInteractedIds(prev => prev.filter(id => id !== postId));
         if (currentUser) {
           setCurrentUser(prev => prev ? { ...prev, help_score: oldHelpScore } : null);
         }
-        triggerToast(data.error || 'การช่วยเหลือน้ำใจทวีตล้มเหลว', 'error');
+        triggerToast(data.error || 'การช่วยเหลือล้มเหลว', 'error');
       }
     } catch {
-      // Rollback optimistic state if request failed
-      setUserInteractions(oldUserInteractions);
+      setInteractedIds(prev => prev.filter(id => id !== postId));
       if (currentUser) {
         setCurrentUser(prev => prev ? { ...prev, help_score: oldHelpScore } : null);
       }
@@ -600,6 +558,17 @@ export default function App() {
               >
                 Leaderboard
               </span>
+              <a
+                href="https://ko-fi.com/brandnewnox"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hidden sm:inline-flex items-center gap-1.5 bg-[#FF5E5B] hover:bg-[#ff4a47] text-white text-xs font-bold px-3 py-1.5 rounded-full transition-all hover:-translate-y-0.5 hover:shadow-lg hover:shadow-[#FF5E5B]/30"
+              >
+                <svg viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5" aria-hidden="true">
+                  <path d="M11.351 2.715c-2.7 0-4.986.025-6.83.26C2.078 3.285 0 5.154 0 8.61c0 3.506.182 6.13 1.585 8.493 1.584 2.701 4.233 4.182 7.662 4.182h.83c4.209 0 6.494-2.234 7.637-4a9.5 9.5 0 0 0 1.091-2.338C21.792 14.688 24 12.22 24 9.208v-.415c0-3.247-2.13-5.507-5.792-5.87-1.558-.156-2.65-.208-6.857-.208m0 1.947c4.208 0 5.09.052 6.571.182 2.624.311 4.13 1.584 4.13 4v.39c0 2.156-1.792 3.844-3.87 3.844h-.935l-.156.649c-.208 1.013-.597 1.818-1.039 2.546-.909 1.428-2.545 3.064-5.922 3.064h-.805c-2.571 0-4.831-.883-6.078-3.195-1.09-2-1.298-4.155-1.298-7.506 0-2.181.857-3.402 3.012-3.714 1.533-.233 3.559-.26 6.39-.26m6.547 2.287c-.416 0-.65.234-.65.546v2.935c0 .311.234.545.65.545 1.324 0 2.051-.754 2.051-2s-.727-2.026-2.052-2.026m-10.39.182c-1.818 0-3.013 1.48-3.013 3.142 0 1.533.858 2.857 1.949 3.897.727.701 1.87 1.429 2.649 1.896a1.47 1.47 0 0 0 1.507 0c.78-.467 1.922-1.195 2.623-1.896 1.117-1.039 1.974-2.364 1.974-3.897 0-1.662-1.247-3.142-3.039-3.142-1.065 0-1.792.545-2.338 1.298-.493-.753-1.246-1.298-2.312-1.298" />
+                </svg>
+                เลี้ยงกาแฟ
+              </a>
               <div className="flex items-center gap-2 border border-border-dark px-3 py-1 bg-surface-dark rounded-sm text-sm">
                 <img className="w-5 h-5 rounded-full" src={currentUser.avatar} alt="Avatar" />
                 <span className="font-semibold text-xs">@{currentUser.x_username}</span>
@@ -632,7 +601,18 @@ export default function App() {
               </div>
               <button className="text-sm text-left text-muted-zinc hover:text-ink-light transition-colors" onClick={() => { window.location.hash = '#dashboard'; setCurrentView('dashboard'); setMobileMenuOpen(false); }}>Dashboard</button>
               <button className="text-sm text-left text-muted-zinc hover:text-ink-light transition-colors" onClick={() => { window.location.hash = '#leaderboard'; setCurrentView('leaderboard'); setMobileMenuOpen(false); }}>Leaderboard</button>
-              <button className="text-sm text-left text-red-500 hover:text-red-400 transition-colors" onClick={handleSignOut}>Sign Out</button>
+              <a
+                href="https://ko-fi.com/brandnewnox"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 bg-[#FF5E5B] hover:bg-[#ff4a47] text-white text-sm font-bold px-4 py-2 rounded-full transition-colors w-fit"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4" aria-hidden="true">
+                  <path d="M11.351 2.715c-2.7 0-4.986.025-6.83.26C2.078 3.285 0 5.154 0 8.61c0 3.506.182 6.13 1.585 8.493 1.584 2.701 4.233 4.182 7.662 4.182h.83c4.209 0 6.494-2.234 7.637-4a9.5 9.5 0 0 0 1.091-2.338C21.792 14.688 24 12.22 24 9.208v-.415c0-3.247-2.13-5.507-5.792-5.87-1.558-.156-2.65-.208-6.857-.208m0 1.947c4.208 0 5.09.052 6.571.182 2.624.311 4.13 1.584 4.13 4v.39c0 2.156-1.792 3.844-3.87 3.844h-.935l-.156.649c-.208 1.013-.597 1.818-1.039 2.546-.909 1.428-2.545 3.064-5.922 3.064h-.805c-2.571 0-4.831-.883-6.078-3.195-1.09-2-1.298-4.155-1.298-7.506 0-2.181.857-3.402 3.012-3.714 1.533-.233 3.559-.26 6.39-.26m6.547 2.287c-.416 0-.65.234-.65.546v2.935c0 .311.234.545.65.545 1.324 0 2.051-.754 2.051-2s-.727-2.026-2.052-2.026m-10.39.182c-1.818 0-3.013 1.48-3.013 3.142 0 1.533.858 2.857 1.949 3.897.727.701 1.87 1.429 2.649 1.896a1.47 1.47 0 0 0 1.507 0c.78-.467 1.922-1.195 2.623-1.896 1.117-1.039 1.974-2.364 1.974-3.897 0-1.662-1.247-3.142-3.039-3.142-1.065 0-1.792.545-2.338 1.298-.493-.753-1.246-1.298-2.312-1.298" />
+                </svg>
+                เลี้ยงกาแฟ
+              </a>
             </div>
           )}
         </header>
@@ -755,15 +735,15 @@ export default function App() {
               {/* Composer - Link Only */}
               <div className="bg-surface-dark border border-border-dark p-6 rounded-md">
                 <h3 className="text-lg font-bold border-b border-border-dark pb-3 mb-4 flex items-center gap-2">
-                  🔗 แชร์ทวีตของคุณเข้าสู่บอร์ดแลกเปลี่ยน
+                  🔗 แชร์โพสต์ของคุณ
                 </h3>
                 <p className="text-xs text-muted-zinc mb-5 leading-relaxed">
-                  นำลิงก์ทวีตจริงที่คุณได้ทำการโพสต์บน X.com ของคุณมาวางลงในกล่องด้านล่าง เพื่อนำขึ้นบอร์ดแลกเปลี่ยนคะแนน Impression กับสมาชิกติ๊กฟ้าคนอื่นๆ ในกลุ่ม
+                  นำลิงก์ทวีตจริงที่คุณได้ทำการโพสต์บน X.com ของคุณมาวางลงในกล่องด้านล่าง
                 </p>
 
                 <div className="flex flex-col gap-4">
                   <div>
-                    <label className="block text-xs uppercase tracking-wider text-muted-zinc font-semibold mb-2">ลิงก์โพสทวีตจาก X.com (Twitter)</label>
+                    <label className="block text-xs uppercase tracking-wider text-muted-zinc font-semibold mb-2">ลิงก์โพสทวีตจาก X.com</label>
                     <input
                       type="text"
                       className="w-full bg-bg-dark border border-border-dark p-3 rounded-sm text-sm text-ink-light focus:outline-none focus:border-primary"
@@ -795,7 +775,7 @@ export default function App() {
               <div>
                 <h2 className="text-xl font-bold mb-4 flex justify-between items-center">
                   บอร์ดแลกเปลี่ยนยอดสมาชิกที่ใช้งานอยู่
-                  <span className="text-xs text-muted-zinc font-normal">แชร์ได้ชั่วโมงละครั้ง โพสหมดอายุใน 12h</span>
+                  <span className="text-xs text-muted-zinc font-normal">แชร์ได้ทุก {POST_COOLDOWN_LABEL} โพสหมดอายุใน {POST_EXPIRY_LABEL}</span>
                 </h2>
 
                 <div className="flex flex-col gap-4">
@@ -807,111 +787,99 @@ export default function App() {
                   ) : (
                     posts.map(post => {
                       const isDone = interactedIds.includes(post.id);
+                      const isExpanded = expandedPostIds.has(post.id);
+
+                      // ── COLLAPSED VIEW (post ที่ช่วยเหลือแล้ว) ──────────────
+                      if (isDone && !isExpanded) {
+                        return (
+                          <div
+                            key={post.id}
+                            id={`post-${post.id}`}
+                            className="bg-surface-dark border border-border-dark rounded-md transition-all duration-200 hover:border-zinc-700 cursor-pointer"
+                            onClick={() => setExpandedPostIds(prev => { const next = new Set(prev); next.add(post.id); return next; })}
+                          >
+                            <div className="flex items-center gap-3 px-4 py-3">
+                              <img className="w-7 h-7 rounded-full object-cover flex-shrink-0 opacity-60" src={post.avatar} alt="" />
+                              <div className="flex-1 min-w-0">
+                                <span className="text-xs text-zinc-500 font-medium">@{post.x_username}</span>
+                                <p className="text-xs text-zinc-600 truncate">{post.content?.slice(0, 60)}{post.content?.length > 60 ? '…' : ''}</p>
+                              </div>
+                              <div className="flex items-center gap-2 flex-shrink-0">
+                                <span className="text-[9px] uppercase font-extrabold tracking-wider text-[#1d9bf0]">✓ ช่วยเหลือแล้ว</span>
+                                <svg className="w-3.5 h-3.5 text-zinc-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      // ── FULL VIEW ─────────────────────────────────────────────
                       return (
                         <div
                           key={post.id}
                           id={`post-${post.id}`}
-                          className={`bg-surface-dark border p-5 rounded-md flex flex-col gap-4 transition-all duration-300 relative ${
-                            isDone ? 'opacity-70 border-border-dark' : 'border-border-dark hover:border-zinc-700'
-                          }`}
+                          className="bg-surface-dark border border-border-dark rounded-md flex flex-col gap-4 transition-all duration-300 relative hover:border-zinc-700"
                         >
-                          {/* Helper Tag */}
+                          {/* Collapse button (ถ้ากางออกมาจาก collapsed) */}
                           {isDone && (
-                            <span className="absolute top-4 right-4 text-[9px] uppercase font-extrabold tracking-wider border border-[#1d9bf0] text-[#1d9bf0] bg-[#1d9bf0]/5 px-2 py-0.5 rounded-sm z-10">
+                            <button
+                              className="absolute top-3 right-3 flex items-center gap-1 text-[9px] uppercase font-extrabold tracking-wider border border-[#1d9bf0] text-[#1d9bf0] bg-[#1d9bf0]/5 px-2 py-0.5 rounded-sm z-10 hover:bg-[#1d9bf0]/10 transition-colors"
+                              onClick={() => setExpandedPostIds(prev => { const next = new Set(prev); next.delete(post.id); return next; })}
+                            >
                               ✓ ช่วยเหลือแล้ว
-                            </span>
+                              <svg className="w-3 h-3 rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                            </button>
                           )}
 
-                          {/* Render the official Twitter oEmbed HTML block */}
-                          {post.oembed_html ? (
-                            <TweetEmbed html={post.oembed_html} />
-                          ) : (
-                            /* High-Fidelity Custom Native X Card Fallback */
-                            <div className="flex flex-col gap-3 text-left">
-                              <div className="flex justify-between items-start w-full">
-                                <div className="flex items-center gap-3">
-                                  <img className="w-10 h-10 rounded-full object-cover border border-zinc-900" src={post.avatar} alt="Avatar" />
-                                  <div className="flex flex-col">
-                                    <h4 className="font-bold text-sm text-white flex items-center gap-1.5 hover:underline cursor-pointer">
-                                      {post.x_name}
-                                      <svg className="w-4 h-4 text-[#1d9bf0] fill-current" viewBox="0 0 24 24">
-                                        <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
-                                      </svg>
-                                    </h4>
-                                    <p className="text-xs text-zinc-500">@{post.x_username}</p>
+                          <div className="p-5 flex flex-col gap-4">
+                            {/* Render the official Twitter oEmbed HTML block */}
+                            {post.oembed_html ? (
+                              <TweetEmbed html={post.oembed_html} />
+                            ) : (
+                              /* High-Fidelity Custom Native X Card Fallback */
+                              <div className="flex flex-col gap-3 text-left">
+                                <div className="flex justify-between items-start w-full">
+                                  <div className="flex items-center gap-3">
+                                    <img className="w-10 h-10 rounded-full object-cover border border-zinc-900" src={post.avatar} alt="Avatar" />
+                                    <div className="flex flex-col">
+                                      <h4 className="font-bold text-sm text-white flex items-center gap-1.5 hover:underline cursor-pointer">
+                                        {post.x_name}
+                                        <svg className="w-4 h-4 text-[#1d9bf0] fill-current" viewBox="0 0 24 24">
+                                          <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
+                                        </svg>
+                                      </h4>
+                                      <p className="text-xs text-zinc-500">@{post.x_username}</p>
+                                    </div>
                                   </div>
+                                  <svg className="w-4 h-4 text-white fill-current opacity-60" viewBox="0 0 24 24">
+                                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                                  </svg>
                                 </div>
-                                <svg className="w-4 h-4 text-white fill-current opacity-60" viewBox="0 0 24 24">
-                                  <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-                                </svg>
-                              </div>
 
-                              <div className="text-white text-sm leading-relaxed whitespace-pre-wrap font-sans">
-                                {post.content.split(/(\s+)/).map((word, idx) => {
-                                  if (word.startsWith('#')) {
-                                    return <span key={idx} className="text-[#1d9bf0] hover:underline cursor-pointer font-medium">{word}</span>;
-                                  }
-                                  if (word.startsWith('@')) {
-                                    return <span key={idx} className="text-[#1d9bf0] hover:underline cursor-pointer font-medium">{word}</span>;
-                                  }
-                                  if (word.startsWith('http://') || word.startsWith('https://')) {
-                                    return <span key={idx} className="text-[#1d9bf0] hover:underline cursor-pointer break-all font-medium">{word}</span>;
-                                  }
-                                  return word;
-                                })}
-                              </div>
+                                <div className="text-white text-sm leading-relaxed whitespace-pre-wrap font-sans">
+                                  {post.content.split(/(\s+)/).map((word, idx) => {
+                                    if (word.startsWith('#')) return <span key={idx} className="text-[#1d9bf0] hover:underline cursor-pointer font-medium">{word}</span>;
+                                    if (word.startsWith('@')) return <span key={idx} className="text-[#1d9bf0] hover:underline cursor-pointer font-medium">{word}</span>;
+                                    if (word.startsWith('http://') || word.startsWith('https://')) return <span key={idx} className="text-[#1d9bf0] hover:underline cursor-pointer break-all font-medium">{word}</span>;
+                                    return word;
+                                  })}
+                                </div>
 
-                              <div className="text-zinc-500 text-[10px] pb-1 border-t border-border-dark pt-2.5 mt-1">
-                                {new Date(post.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} · {new Date(post.created_at).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' })} · <span className="text-[#1d9bf0] font-semibold">X Verify Collab</span>
+                                <div className="text-zinc-500 text-[10px] pb-1 border-t border-border-dark pt-2.5 mt-1">
+                                  {new Date(post.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} · {new Date(post.created_at).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' })} · <span className="text-[#1d9bf0] font-semibold">X Verify Collab</span>
+                                </div>
                               </div>
+                            )}
+
+                            <div className="border-t border-border-dark pt-3">
+                              <button
+                                className="w-full border border-primary/40 hover:border-primary hover:bg-primary/10 text-primary text-sm font-bold py-2.5 px-4 rounded-sm transition-all flex justify-center items-center gap-2 cursor-pointer"
+                                onClick={() => triggerInteraction(post.id)}
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                                ช่วยเหลือ +1 แต้ม
+                              </button>
                             </div>
-                          )}
-
-                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 border-t border-border-dark pt-3">
-                            <button
-                              className={`border text-xs font-semibold py-2 px-1 rounded-sm transition-all flex justify-center items-center gap-1.5 ${
-                                userInteractions[post.id]?.includes('repost')
-                                  ? 'border-zinc-800 bg-zinc-900/60 text-zinc-600 cursor-not-allowed opacity-50'
-                                  : 'border-border-dark hover:border-primary hover:bg-primary/5 text-muted-zinc hover:text-primary cursor-pointer'
-                              }`}
-                              onClick={() => triggerInteraction(post.id, 'repost')}
-                              disabled={userInteractions[post.id]?.includes('repost')}
-                            >
-                              {userInteractions[post.id]?.includes('repost') ? '✓ Reposted' : '🔄 Repost'}
-                            </button>
-                            <button
-                              className={`border text-xs font-semibold py-2 px-1 rounded-sm transition-all flex justify-center items-center gap-1.5 ${
-                                userInteractions[post.id]?.includes('like')
-                                  ? 'border-zinc-800 bg-zinc-900/60 text-zinc-600 cursor-not-allowed opacity-50'
-                                  : 'border-border-dark hover:border-primary hover:bg-primary/5 text-muted-zinc hover:text-primary cursor-pointer'
-                              }`}
-                              onClick={() => triggerInteraction(post.id, 'like')}
-                              disabled={userInteractions[post.id]?.includes('like')}
-                            >
-                              {userInteractions[post.id]?.includes('like') ? '✓ Liked' : '❤️ Like'}
-                            </button>
-                            <button
-                              className={`border text-xs font-semibold py-2 px-1 rounded-sm transition-all flex justify-center items-center gap-1.5 ${
-                                userInteractions[post.id]?.includes('quote')
-                                  ? 'border-zinc-800 bg-zinc-900/60 text-zinc-600 cursor-not-allowed opacity-50'
-                                  : 'border-border-dark hover:border-primary hover:bg-primary/5 text-muted-zinc hover:text-primary cursor-pointer'
-                              }`}
-                              onClick={() => triggerInteraction(post.id, 'quote')}
-                              disabled={userInteractions[post.id]?.includes('quote')}
-                            >
-                              {userInteractions[post.id]?.includes('quote') ? '✓ Quoted' : '💬 Quote'}
-                            </button>
-                            <button
-                              className={`border text-xs font-semibold py-2 px-1 rounded-sm transition-all flex justify-center items-center gap-1.5 ${
-                                userInteractions[post.id]?.includes('mention')
-                                  ? 'border-zinc-800 bg-zinc-900/60 text-zinc-600 cursor-not-allowed opacity-50'
-                                  : 'border-border-dark hover:border-primary hover:bg-primary/5 text-muted-zinc hover:text-primary cursor-pointer'
-                              }`}
-                              onClick={() => triggerInteraction(post.id, 'mention')}
-                              disabled={userInteractions[post.id]?.includes('mention')}
-                            >
-                              {userInteractions[post.id]?.includes('mention') ? '✓ Mentioned' : '✉️ Mention'}
-                            </button>
                           </div>
                         </div>
                       );
@@ -990,7 +958,8 @@ export default function App() {
                 <strong>เกณฑ์วัดแต้มน้ำใจและการเก็บสถิติ:</strong><br />
                 • Repost / Quote ทวีตเพื่อนร่วมกลุ่ม = <span className="font-bold text-primary">+3 แต้ม</span><br />
                 • Mention ตอบกลับทวีตเพื่อน = <span className="font-bold text-primary">+2 แต้ม</span><br />
-                • Like ทวีตเพื่อน = <span className="font-bold text-primary">+1 แต้ม</span>
+                • Like ทวีตเพื่อน = <span className="font-bold text-primary">+1 แต้ม</span><br />
+                <span className="text-zinc-500">• แต้มนับตามประเภทกิจกรรมที่ทำกับแต่ละโพส — ทำครบได้อีกด้วย!</span>
               </div>
             </div>
 

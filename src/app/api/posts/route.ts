@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { DB } from '@/lib/db';
+import { POST_COOLDOWN_MS, POST_COOLDOWN_LABEL } from '@/lib/constants';
 
 // GET: Retrieve all active posts (Interaction Deprioritization Rule applied)
 export async function GET() {
@@ -101,15 +102,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'กรุณาระบุลิงก์ทวีต X.com' }, { status: 400 });
     }
 
-    // 1. Rate Limiting Check: 1 post per hour per user
+    // 1. Rate Limiting Check: 1 post per POST_COOLDOWN_LABEL per user
     const lastPostTime = await DB.getUserLastPostTime(userId);
-    const oneHour = 60 * 60 * 1000;
 
-    if (lastPostTime && (Date.now() - lastPostTime < oneHour)) {
-      const timeLeft = oneHour - (Date.now() - lastPostTime);
+    if (lastPostTime && (Date.now() - lastPostTime < POST_COOLDOWN_MS)) {
+      const timeLeft = POST_COOLDOWN_MS - (Date.now() - lastPostTime);
       const minutesLeft = Math.ceil(timeLeft / (60 * 1000));
       return NextResponse.json(
-        { error: `จำกัดสิทธิ์ลงโพสชั่วโมงละ 1 ครั้ง! กรุณารออีก ${minutesLeft} นาที` },
+        { error: `จำกัดสิทธิ์ลงโพสทุก ${POST_COOLDOWN_LABEL}! กรุณารออีก ${minutesLeft} นาที` },
         { status: 429 }
       );
     }
