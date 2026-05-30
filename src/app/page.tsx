@@ -1,65 +1,906 @@
-import Image from "next/image";
+'use client';
 
-export default function Home() {
+import { useState, useEffect } from 'react';
+import { supabase } from '@/lib/supabase';
+
+interface User {
+  id: string;
+  x_username: string;
+  x_name: string;
+  role: 'pending' | 'member' | 'admin';
+  avatar: string;
+  bio: string;
+  help_score: number;
+  google_email?: string;
+}
+
+interface Post {
+  id: string;
+  user_id: string;
+  x_username: string;
+  x_name: string;
+  avatar: string;
+  content: string;
+  x_post_id: string;
+  x_post_url?: string;
+  posted_via: 'link' | 'compose';
+  created_at: number;
+  oembed_html?: string;
+}
+
+interface TrendingHashtag {
+  id: string;
+  hashtag: string;
+  tweet_volume: number;
+  is_hot?: boolean;
+}
+
+export default function App() {
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [currentView, setCurrentView] = useState<'dashboard' | 'leaderboard' | 'admin'>('dashboard');
+
+  // Input states
+  const [googleEmailInput, setGoogleEmailInput] = useState('');
+  
+  // Onboarding states
+  const [onboardXUsername, setOnboardXUsername] = useState('');
+  const [onboardXName, setOnboardXName] = useState('');
+  const [onboardXBio, setOnboardXBio] = useState('');
+
+  const [linkInput, setLinkInput] = useState('');
+
+  // Data states
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [interactedIds, setInteractedIds] = useState<string[]>([]);
+  const [trends, setTrends] = useState<TrendingHashtag[]>([]);
+  const [leaderboardUsers, setLeaderboardUsers] = useState<User[]>([]);
+  const [pendingUsers, setPendingUsers] = useState<User[]>([]);
+
+  // Cooldown timers
+  const [cooldownString, setCooldownString] = useState('✓ พร้อมลงโพสถัดไปแล้ว');
+
+  // Stats for Admin
+  const [adminStats, setAdminStats] = useState({
+    pending: 0,
+    members: 0,
+    posts: 0,
+    helps: 0
+  });
+
+  // Toasts
+  interface Toast {
+    id: string;
+    msg: string;
+    type: 'default' | 'success' | 'error';
+  }
+  const [toasts, setToasts] = useState<Toast[]>([]);
+
+  const triggerToast = (msg: string, type: 'default' | 'success' | 'error' = 'default') => {
+    const id = Math.random().toString(36).substring(2);
+    setToasts(prev => [...prev, { id, msg, type }]);
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+    }, 4000);
+  };
+
+  // Fetch authentication session
+  const checkSession = async () => {
+    try {
+      const res = await fetch('/api/auth/session');
+      const data = await res.json();
+      if (data.authenticated && data.user) {
+        setCurrentUser(data.user);
+        if (data.user.role === 'admin') {
+          const hash = window.location.hash.replace('#', '');
+          if (hash === 'admin') setCurrentView('admin');
+        }
+      } else {
+        setCurrentUser(null);
+      }
+    } catch {
+      triggerToast('ไม่สามารถเชื่อมต่อระบบเซสชันได้', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Initial loads
+  useEffect(() => {
+    checkSession();
+
+    // Auto-login and sync session cookies when returning from Supabase Google SSO
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session?.user?.email) {
+        try {
+          const res = await fetch('/api/auth/x-sso', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: session.user.email })
+          });
+          const data = await res.json();
+          if (data.success && data.user) {
+            setCurrentUser(data.user);
+            if (!data.user.x_username) {
+              triggerToast('ลงชื่อเข้าใช้งานสำเร็จ กรุณาผูกบัญชี X เพื่อยื่นขอสิทธิ์แรกเข้า', 'success');
+            } else if (data.user.role === 'pending') {
+              triggerToast('ล็อกอินสำเร็จ โปรไฟล์ของคุณอยู่ระหว่างรออนุมัติสิทธิ์แรกเข้า', 'success');
+            } else {
+              triggerToast(`ยินดีต้อนรับเข้าใช้งาน @${data.user.x_username}`, 'success');
+              window.location.hash = '#dashboard';
+            }
+          }
+        } catch {}
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  // Hydrate Twitter oEmbed blockquotes using platform script
+  useEffect(() => {
+    const script = document.createElement('script');
+    script.src = 'https://platform.twitter.com/widgets.js';
+    script.async = true;
+    script.charset = 'utf-8';
+    document.body.appendChild(script);
+    return () => {
+      const existingScript = document.querySelector('script[src="https://platform.twitter.com/widgets.js"]');
+      if (existingScript) {
+        existingScript.remove();
+      }
+    };
+  }, [posts]);
+
+  // Update cooldown strings
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const fetchCooldown = async () => {
+      try {
+        const res = await fetch('/api/posts');
+        const data = await res.json();
+      } catch {}
+    };
+
+    fetchCooldown();
+  }, [currentUser, posts]);
+
+  // Handle Hash updates
+  useEffect(() => {
+    const handleHash = () => {
+      const hash = window.location.hash.replace('#', '');
+      if (hash === 'admin' && currentUser?.role === 'admin') {
+        setCurrentView('admin');
+      } else if (hash === 'leaderboard') {
+        setCurrentView('leaderboard');
+      } else {
+        setCurrentView('dashboard');
+      }
+    };
+    window.addEventListener('hashchange', handleHash);
+    return () => window.removeEventListener('hashchange', handleHash);
+  }, [currentUser]);
+
+  // Load feed, trends, stats when user switches views or submits content
+  useEffect(() => {
+    if (!currentUser || currentUser.role === 'pending') return;
+
+    const loadData = async () => {
+      try {
+        // Fetch posts
+        const postsRes = await fetch('/api/posts');
+        const postsData = await postsRes.json();
+        setPosts(postsData.posts || []);
+        setInteractedIds(postsData.interactedIds || []);
+
+        // Fetch trends
+        const trendsRes = await fetch('/api/trends');
+        const trendsData = await trendsRes.json();
+        setTrends(trendsData.trends || []);
+
+        // Fetch users for leaderboard & admin panel
+        const adminUsersRes = await fetch('/api/admin/users');
+        const adminUsersData = await adminUsersRes.json();
+        setPendingUsers(adminUsersData.pending || []);
+
+        // Fetch leaderboard ranking
+        const mockMembers: User[] = [
+          { id: 'u1', x_username: 'Srettha_TH', x_name: 'Srettha Tech', role: 'member', help_score: 45, bio: 'Tech investor & Content Creator. Sharing insights on startup ecosystem.', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80' },
+          { id: 'u2', x_username: 'KhunMeme', x_name: 'มีมราชา', role: 'member', help_score: 92, bio: 'ราชาแห่งการปั่นมีมติ๊กฟ้า ขำขันรายวันสไตล์คนทำงาน.', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80' },
+          { id: 'u3', x_username: 'Jane_CryptoTH', x_name: 'Jane Web3', role: 'member', help_score: 30, bio: 'Crypto analyst & Trader. Building the Thai crypto community.', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&auto=format&fit=crop&q=80' },
+          { id: 'u5', x_username: 'AdminX', x_name: 'แอดมินติ๊กฟ้า', role: 'admin', help_score: 120, bio: 'ผู้พัฒนาแพลตฟอร์ม "ติ๊กฟ้าช่วยติ๊กฟ้า" ยินดีต้อนรับทุกคนครับ.', avatar: 'https://images.unsplash.com/photo-1628157582853-a796fa650a6a?w=100&auto=format&fit=crop&q=80' }
+        ];
+
+        // Merge current user score
+        const selfInMock = mockMembers.find(m => m.id === currentUser.id);
+        if (selfInMock) {
+          selfInMock.help_score = currentUser.help_score;
+        } else if (currentUser.role !== 'pending') {
+          mockMembers.push(currentUser);
+        }
+
+        setLeaderboardUsers(mockMembers.sort((a, b) => b.help_score - a.help_score));
+
+        // Update statistics
+        setAdminStats({
+          pending: adminUsersData.pending?.length || 0,
+          members: mockMembers.length,
+          posts: postsData.posts?.length || 0,
+          helps: 12
+        });
+
+      } catch (err) {
+        // Fallback loading error
+      }
+    };
+
+    loadData();
+  }, [currentUser, currentView]);
+
+  // Handle Google SSO login (100% Free SSO via Supabase Google OAuth)
+  const handleGoogleLogin = async () => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}`
+        }
+      });
+      if (error) {
+        triggerToast(error.message, 'error');
+      }
+    } catch {
+      triggerToast('เกิดข้อผิดพลาดในการนำทางไปยังระบบเข้าสู่ระบบของ Google', 'error');
+    }
+  };
+
+  // Handle Onboarding form submit (Links custom X handle and triggers admin request)
+  const handleOnboardSubmit = async () => {
+    if (!onboardXUsername) {
+      triggerToast('กรุณาระบุชื่อผู้ใช้งาน X.com ของคุณ', 'error');
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/auth/x-sso', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          xUsername: onboardXUsername,
+          xName: onboardXName || onboardXUsername,
+          bio: onboardXBio || 'ครีเอเตอร์สมาชิกพรีเมียม ยินดีที่ได้ร่วมบอร์ดแลกยอดครับ.'
+        })
+      });
+      const data = await res.json();
+      if (data.success && data.user) {
+        setCurrentUser(data.user);
+        triggerToast('บันทึกข้อมูลและส่งคำขอตรวจสอบสิทธิ์แรกเข้าแก่แอดมินเรียบร้อย!', 'success');
+      } else {
+        triggerToast(data.error || 'การผูกบัญชีขัดข้อง', 'error');
+      }
+    } catch {
+      triggerToast('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์เพื่อผูกบัญชีได้', 'error');
+    }
+  };
+
+
+
+  // Sign out
+  const handleSignOut = async () => {
+    try {
+      await fetch('/api/auth/session', { method: 'DELETE' });
+      setCurrentUser(null);
+      setOnboardXUsername('');
+      setOnboardXName('');
+      setOnboardXBio('');
+      triggerToast('ลงชื่อออกจากระบบเรียบร้อย', 'success');
+      window.location.hash = '#login';
+    } catch {
+      triggerToast('ลงชื่อออกขัดข้อง', 'error');
+    }
+  };
+
+  // Submit new post (requires pasting a tweet URL, fetches oEmbed dynamically)
+  const handleSubmitPost = async (urlToSubmit: string) => {
+    if (!urlToSubmit) {
+      triggerToast('กรุณาระบุลิงก์ทวีต X.com เพื่อใช้งาน', 'error');
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/posts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: urlToSubmit })
+      });
+      const data = await res.json();
+      if (data.success) {
+        triggerToast('ลงทะเบียนแชร์ทวีตขึ้นบอร์ดแลกเปลี่ยนยอดสำเร็จ!', 'success');
+        setLinkInput('');
+        
+        // Refresh posts list
+        const postsRes = await fetch('/api/posts');
+        const postsData = await postsRes.json();
+        setPosts(postsData.posts || []);
+      } else {
+        triggerToast(data.error || 'เกิดข้อผิดพลาดในการลงทะเบียน', 'error');
+      }
+    } catch {
+      triggerToast('ไม่สามารถส่งคำขอลงทะเบียนได้', 'error');
+    }
+  };
+
+  // Trigger social media exchange interaction (like, repost, quote, mention) using free X Web Intents
+  const triggerInteraction = async (postId: string, type: 'repost' | 'like' | 'quote' | 'mention') => {
+    const post = posts.find(p => p.id === postId);
+    if (!post) return;
+
+    if (post.user_id === currentUser?.id) {
+      triggerToast('คุณไม่สามารถช่วยเหลือและแลกคะแนนกับโพสของตัวเองได้', 'error');
+      return;
+    }
+
+    // Generate free X Web Intent URL to trigger manual browser action
+    let intentUrl = '';
+    const encodedUrl = encodeURIComponent(post.x_post_url || `https://x.com/${post.x_username}/status/${post.x_post_id}`);
+    if (type === 'repost') {
+      intentUrl = `https://x.com/intent/retweet?tweet_id=${post.x_post_id}`;
+    } else if (type === 'like') {
+      intentUrl = `https://x.com/intent/like?tweet_id=${post.x_post_id}`;
+    } else if (type === 'quote') {
+      intentUrl = `https://x.com/intent/tweet?url=${encodedUrl}`;
+    } else if (type === 'mention') {
+      intentUrl = `https://x.com/intent/tweet?in_reply_to=${post.x_post_id}`;
+    }
+
+    if (intentUrl) {
+      window.open(intentUrl, '_blank');
+      triggerToast(`เปิดหน้าต่าง X.com Intent [${type.toUpperCase()}] สำเร็จ กรุณากดทำรายการแล้วยืนยันรับแต้ม`, 'success');
+    }
+
+    try {
+      const res = await fetch('/api/interactions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ postId, type })
+      });
+      const data = await res.json();
+      
+      if (data.success) {
+        triggerToast(`บันทึกแต้มสำเร็จ! ได้รับ +${data.pointsAwarded} แต้มจากการช่วยเหลือเพื่อนสมาชิก`, 'success');
+        
+        if (currentUser) {
+          setCurrentUser(prev => prev ? { ...prev, help_score: data.totalScore } : null);
+        }
+
+        const postCard = document.getElementById(`post-${postId}`);
+        if (postCard) {
+          postCard.style.transform = 'scale(0.96)';
+          postCard.style.opacity = '0.4';
+        }
+
+        setTimeout(async () => {
+          const postsRes = await fetch('/api/posts');
+          const postsData = await postsRes.json();
+          setPosts(postsData.posts || []);
+          setInteractedIds(postsData.interactedIds || []);
+        }, 400);
+
+      } else {
+        triggerToast(data.error || 'การช่วยเหลือน้ำใจทวีตล้มเหลว', 'error');
+      }
+    } catch {
+      triggerToast('เชื่อมต่อ API ขัดข้อง', 'error');
+    }
+  };
+
+  // Thailand trends monitoring refresh simulator
+  const refreshTrends = async () => {
+    try {
+      const res = await fetch('/api/trends', { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        setTrends(data.trends || []);
+        triggerToast('ดึงข้อมูลสถิติเทรนด์แท็กประเทศไทยล่าสุดสำเร็จ (WOEID: TH)', 'success');
+      }
+    } catch {
+      triggerToast('ดึงข้อมูลเทรนด์ขัดข้อง', 'error');
+    }
+  };
+
+  // Helper click to copy tags
+  const copyHashtag = (tag: string) => {
+    navigator.clipboard.writeText(tag);
+    triggerToast(`คัดลอกแฮชแท็ก ${tag} ลงในคลิปบอร์ดแล้ว นำไปวางใน X.com ได้เลย`, 'success');
+  };
+
+  // Admin approvals handlers
+  const handleApproveUser = async (userId: string) => {
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId })
+      });
+      const data = await res.json();
+      if (data.success) {
+        triggerToast(`อนุมัติสิทธิ์ติ๊กฟ้าแก่ผู้ใช้ @${data.user.x_username} สำเร็จ!`, 'success');
+        
+        const card = document.getElementById(`pending-card-${userId}`);
+        if (card) {
+          card.style.opacity = '0';
+          card.style.transform = 'translateY(-10px)';
+        }
+        
+        setTimeout(() => {
+          setPendingUsers(prev => prev.filter(u => u.id !== userId));
+        }, 300);
+      }
+    } catch {
+      triggerToast('ดำเนินการอนุมัติสิทธิ์ขัดข้อง', 'error');
+    }
+  };
+
+  const handleRejectUser = async (userId: string) => {
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId })
+      });
+      const data = await res.json();
+      if (data.success) {
+        triggerToast('ปฏิเสธการขอสมัครและลบโปรไฟล์ดังกล่าวออกเรียบร้อย', 'success');
+        
+        const card = document.getElementById(`pending-card-${userId}`);
+        if (card) {
+          card.style.opacity = '0';
+          card.style.transform = 'translateY(-10px)';
+        }
+
+        setTimeout(() => {
+          setPendingUsers(prev => prev.filter(u => u.id !== userId));
+        }, 300);
+      }
+    } catch {
+      triggerToast('ปฏิเสธบัญชีผิดพลาด', 'error');
+    }
+  };
+
+  // Simulation: Reset all cooldown locks
+  const clearCooldowns = async () => {
+    try {
+      const res = await fetch('/api/admin/cooldowns', { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        triggerToast('ล้างบันทึกเวลาล็อกคูลดาวน์ของทุกบัญชีในฐานข้อมูลสำเร็จ!', 'success');
+      }
+    } catch {
+      triggerToast('ล้างคูลดาวน์ผิดพลาด', 'error');
+    }
+  };
+
+
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-bg-dark text-ink-light">
+        <div className="text-center font-display text-2xl animate-pulse">กำลังโหลดสถาปัตยกรรม ติ๊กฟ้าช่วยติ๊กฟ้า...</div>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+    <div className="min-h-screen flex flex-col bg-bg-dark text-ink-light">
+      
+      {/* TOAST NOTIFIER SYSTEM */}
+      <div className="fixed bottom-6 right-6 flex flex-col gap-2 z-[1000] max-w-sm w-full">
+        {toasts.map(t => (
+          <div 
+            key={t.id} 
+            className={`flex items-center justify-between bg-surface-dark border border-border-dark p-4 rounded-sm shadow-2xl transition-all duration-300 border-l-4 ${
+              t.type === 'error' ? 'border-l-red-500' : t.type === 'success' ? 'border-l-green-500' : 'border-l-primary'
+            }`}
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
+            <span className="text-sm font-medium pr-4">{t.msg}</span>
+            <button className="text-muted-zinc hover:text-ink-light font-bold" onClick={() => setToasts(prev => prev.filter(x => x.id !== t.id))}>×</button>
+          </div>
+        ))}
+      </div>
+
+      {/* HEADER SECTION */}
+      {currentUser && currentUser.x_username && (
+        <header className="border-b border-border-dark py-4 px-6 sticky top-0 bg-bg-dark/95 backdrop-blur-sm z-50">
+          <div className="max-w-7xl mx-auto flex justify-between items-center">
+            <div className="brand" onClick={() => { window.location.hash = '#dashboard'; setCurrentView('dashboard'); }}>
+              <h1 className="text-2xl font-bold cursor-pointer hover:opacity-90">ติ๊กฟ้าช่วยติ๊กฟ้า<span className="text-primary">.</span></h1>
+            </div>
+            
+            <nav className="flex items-center gap-6">
+              <span 
+                className={`text-sm font-medium cursor-pointer transition-colors ${currentView === 'dashboard' ? 'text-ink-light' : 'text-muted-zinc hover:text-ink-light'}`}
+                onClick={() => { window.location.hash = '#dashboard'; setCurrentView('dashboard'); }}
+              >
+                Dashboard
+              </span>
+              <span 
+                className={`text-sm font-medium cursor-pointer transition-colors ${currentView === 'leaderboard' ? 'text-ink-light' : 'text-muted-zinc hover:text-ink-light'}`}
+                onClick={() => { window.location.hash = '#leaderboard'; setCurrentView('leaderboard'); }}
+              >
+                Leaderboard
+              </span>
+
+              
+              <div className="flex items-center gap-2 border border-border-dark px-3 py-1 bg-surface-dark rounded-sm text-sm">
+                <img className="w-5 h-5 rounded-full" src={currentUser.avatar} alt="Avatar" />
+                <span className="font-semibold text-xs">@{currentUser.x_username}</span>
+                <span className="text-primary text-xs">✓</span>
+              </div>
+              
+              <button 
+                className="text-sm font-medium text-red-500 hover:text-red-400 transition-colors" 
+                onClick={handleSignOut}
+              >
+                Sign Out
+              </button>
+            </nav>
+          </div>
+        </header>
+      )}
+
+      <main className="flex-1 max-w-7xl w-full mx-auto p-6 flex flex-col gap-6">
+        
+        {/* ==================== VIEW 1. LOGIN SCREEN ==================== */}
+        {!currentUser && (
+          <section className="max-w-md w-full mx-auto my-12 border border-border-dark bg-surface-dark p-8 rounded-md text-center">
+            <h2 className="text-3xl font-bold mb-2 font-display">ติ๊กฟ้าช่วยติ๊กฟ้า</h2>
+            <p className="text-sm text-muted-zinc mb-6 leading-relaxed">
+              แพลตฟอร์มประสานงานค่าน้ำใจแลกยอด Impressions สำหรับครีเอเตอร์ระดับพรีเมียม X Verify ประเทศไทย
+            </p>
+
+            <div className="flex flex-col gap-4">
+              <button 
+                className="w-full bg-white text-black hover:bg-neutral-200 font-bold py-3 px-4 rounded-sm transition-colors cursor-pointer text-sm flex items-center justify-center gap-2"
+                onClick={handleGoogleLogin}
+              >
+                🌐 ลงชื่อใช้งานด้วย Google SSO (ฟรี)
+              </button>
+            </div>
+
+            <div className="text-left mt-6 text-[10px] text-muted-zinc leading-relaxed border-t border-border-dark/50 pt-4">
+              * ระบบเข้าใช้งานตรง: คลิกด้านบนเพื่อดำเนินการล็อกอินด้วยบัญชีจริงผ่านระบบความปลอดภัย OAuth ของ Google
+            </div>
+          </section>
+        )}
+
+        {/* ==================== VIEW 1.5. ONBOARDING BIND X ACCOUNT ==================== */}
+        {currentUser && !currentUser.x_username && (
+          <section className="max-w-md w-full mx-auto my-16 border border-border-dark bg-surface-dark p-8 rounded-md text-center">
+            <h2 className="text-2xl font-bold mb-2">ผูกบัญชี 𝕏 (Twitter)</h2>
+            <p className="text-sm text-muted-zinc mb-6 leading-relaxed">
+              กรุณากรอกข้อมูลโปรไฟล์ X.com ของคุณเพื่อขอสมัครเข้าร่วมกลุ่มแลกเปลี่ยนแต้ม ข้อมูลนี้จะส่งไปให้แอดมินอนุมัติผ่านแผงควบคุมหลังบ้าน
+            </p>
+
+            <div className="text-left mb-4">
+              <label className="block text-xs uppercase tracking-wider text-muted-zinc font-semibold mb-2">ป้อน X Handle / Username (ไม่ต้องใส่ @)</label>
+              <input 
+                type="text" 
+                className="w-full bg-bg-dark border border-border-dark p-2.5 rounded-sm text-ink-light focus:outline-none focus:border-primary text-sm"
+                placeholder="เช่น NongVerify"
+                value={onboardXUsername}
+                onChange={e => setOnboardXUsername(e.target.value)}
+              />
+            </div>
+
+            <div className="text-left mb-4">
+              <label className="block text-xs uppercase tracking-wider text-muted-zinc font-semibold mb-2">ชื่อสำหรับแสดงบนโปรไฟล์ X (Profile Name)</label>
+              <input 
+                type="text" 
+                className="w-full bg-bg-dark border border-border-dark p-2.5 rounded-sm text-ink-light focus:outline-none focus:border-primary text-sm"
+                placeholder="เช่น น้องติ๊กฟ้าน่ารัก"
+                value={onboardXName}
+                onChange={e => setOnboardXName(e.target.value)}
+              />
+            </div>
+
+            <div className="text-left mb-6">
+              <label className="block text-xs uppercase tracking-wider text-muted-zinc font-semibold mb-2">ประวัติการทำคอนเทนต์สั้นๆ (Bio)</label>
+              <textarea 
+                className="w-full bg-bg-dark border border-border-dark p-2.5 rounded-sm text-ink-light focus:outline-none focus:border-primary text-sm h-20 resize-none"
+                placeholder="รีวิวอาหาร ท่องเที่ยว ถ่ายภาพ ฝากเนื้อฝากตัวด้วยนะคะ..."
+                value={onboardXBio}
+                onChange={e => setOnboardXBio(e.target.value)}
+              />
+            </div>
+
+            <button 
+              className="w-full bg-white text-black hover:bg-neutral-200 font-bold py-3 px-4 rounded-sm transition-colors cursor-pointer text-sm"
+              onClick={handleOnboardSubmit}
+            >
+              ผูกบัญชีและยื่นขอตรวจสอบแรกเข้า
+            </button>
+
+            <button 
+              className="w-full mt-4 border border-border-dark hover:bg-bg-dark text-red-500 font-semibold py-2 px-4 rounded-sm transition-colors cursor-pointer text-xs"
+              onClick={handleSignOut}
+            >
+              ยกเลิกและออกจากระบบ
+            </button>
+          </section>
+        )}
+
+        {/* ==================== VIEW 2. PENDING APPROVAL VIEW ==================== */}
+        {currentUser && currentUser.x_username && currentUser.role === 'pending' && (
+          <section className="max-w-lg w-full mx-auto my-20 border border-border-dark bg-surface-dark p-8 rounded-md text-center">
+            <h2 className="text-2xl font-bold mb-2">กำลังรอการตรวจสอบความถูกต้องแรกเข้า</h2>
+            <p className="text-sm text-muted-zinc mb-6">ผู้ดูแลระบบกำลังตรวจสอบประวัติและสิทธิ์ติ๊กฟ้าของคุณบนบัญชี X.com ของจริง เพื่อรักษาระบบที่ยุติธรรมและปลอดบอท</p>
+
+            <div className="border border-border-dark p-5 rounded-sm bg-bg-dark text-left flex gap-4 items-center mb-6">
+              <img className="w-12 h-12 rounded-full" src={currentUser.avatar} alt="Avatar" />
+              <div className="flex-1">
+                <h4 className="font-bold flex items-center gap-1.5">{currentUser.x_name} <span className="text-primary text-sm">✓</span></h4>
+                <p className="text-xs text-muted-zinc">@{currentUser.x_username}</p>
+                <span className="inline-block mt-2 px-2.5 py-0.5 bg-surface-dark border border-border-dark text-[10px] text-muted-zinc font-semibold uppercase rounded-sm">สถานะ: รอการอนุมัติสิทธิ์</span>
+              </div>
+            </div>
+
+            <div className="text-left bg-primary/5 border border-primary/20 p-4 rounded-sm text-sm mb-6 leading-relaxed">
+              💡 <span className="font-semibold text-primary">คำแนะนำสำหรับการทดสอบ:</span> สมาชิกสามารถกดที่เมนู **"เปิดระบบแอดมินหลังบ้าน"** ด้านล่างสุดของหน้าจอ (Footer) เพื่อจำลองสิทธิ์เป็น Admin และเข้าไปกด Approve โปรไฟล์ของตัวท่านเองได้ในหน้าระบบควบคุมผู้ดูแล!
+            </div>
+
+            <button 
+              className="w-full border border-border-dark hover:bg-surface-dark py-3 rounded-sm font-semibold transition-colors cursor-pointer text-sm"
+              onClick={checkSession}
+            >
+              🔄 รีเฟรชเช็คสถานะการเข้าใช้งาน
+            </button>
+          </section>
+        )}
+
+        {/* ==================== VIEW 3. DASHBOARD MAIN VIEW ==================== */}
+        {currentUser && currentUser.x_username && currentUser.role !== 'pending' && currentView === 'dashboard' && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+            
+            {/* LEFT FEED & COMPOSER */}
+            <div className="md:col-span-2 flex flex-col gap-6">
+              
+              {/* Composer - Link Only */}
+              <div className="bg-surface-dark border border-border-dark p-6 rounded-md">
+                <h3 className="text-lg font-bold border-b border-border-dark pb-3 mb-4 flex items-center gap-2">
+                  🔗 แชร์ทวีตของคุณเข้าสู่บอร์ดแลกเปลี่ยน
+                </h3>
+                <p className="text-xs text-muted-zinc mb-5 leading-relaxed">
+                  นำลิงก์ทวีตจริงที่คุณได้ทำการโพสต์บน X.com ของคุณมาวางลงในกล่องด้านล่าง เพื่อนำขึ้นบอร์ดแลกเปลี่ยนคะแนน Impression กับสมาชิกติ๊กฟ้าคนอื่นๆ ในกลุ่ม
+                </p>
+
+                <div className="flex flex-col gap-4">
+                  <div>
+                    <label className="block text-xs uppercase tracking-wider text-muted-zinc font-semibold mb-2">ลิงก์โพสทวีตจาก X.com (Twitter)</label>
+                    <input 
+                      type="text" 
+                      className="w-full bg-bg-dark border border-border-dark p-3 rounded-sm text-sm text-ink-light focus:outline-none focus:border-primary"
+                      placeholder="https://x.com/username/status/1234567890..."
+                      value={linkInput}
+                      onChange={e => setLinkInput(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-muted-zinc" id="post-cooldown-timer">
+                      {cooldownString}
+                    </span>
+                    <button 
+                      className="bg-primary hover:bg-primary-hover text-ink-light font-bold text-xs uppercase tracking-wider py-2.5 px-5 rounded-sm transition-colors cursor-pointer"
+                      onClick={() => handleSubmitPost(linkInput)}
+                    >
+                      ลงทะเบียนแลก Impression
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mt-5 pt-4 border-t border-border-dark/50 text-[10px] text-muted-zinc leading-relaxed">
+                  💡 <strong>ขั้นตอนการทำคอนเทนต์:</strong> 1. เขียนข้อความและโพสต์ทวีตจริงด้วยตัวเองโดยตรงบนเว็บไซต์ X.com &mdash; 2. คัดลอกลิงก์สถานะทวีตของคุณ &mdash; 3. นำมาวางลงทะเบียนในกล่องด้านบนเพื่อเปิดฟีดแลกคะแนน.
+                </div>
+              </div>
+
+              {/* Active Posts Feed */}
+              <div>
+                <h2 className="text-xl font-bold mb-4 flex justify-between items-center">
+                  บอร์ดแลกเปลี่ยนยอดสมาชิกที่ใช้งานอยู่
+                  <span className="text-xs text-muted-zinc font-normal">แชร์ได้ชั่วโมงละครั้ง โพสหมดอายุใน 12h</span>
+                </h2>
+
+                <div className="flex flex-col gap-4">
+                  {posts.length === 0 ? (
+                    <div className="text-center p-12 border border-dashed border-border-dark rounded-md text-muted-zinc">
+                      <h3 className="font-display text-lg text-ink-light mb-1">ยังไม่มีผู้ลงโพสทวีตในระบบขณะนี้</h3>
+                      <p className="text-xs">แชร์ลิงก์โพสทวีตแรกของคุณเพื่อรับคะแนน Impression จากเพื่อนๆ ในกลุ่มได้ทันทีก่อนใคร!</p>
+                    </div>
+                  ) : (
+                    posts.map(post => {
+                      const isDone = interactedIds.includes(post.id);
+                      return (
+                        <div 
+                          key={post.id} 
+                          id={`post-${post.id}`}
+                          className={`bg-surface-dark border p-5 rounded-md flex flex-col gap-4 transition-all duration-300 relative ${
+                            isDone ? 'opacity-60 border-border-dark' : 'border-border-dark hover:border-zinc-700'
+                          }`}
+                        >
+                          {isDone && (
+                            <span className="absolute top-4 right-4 text-[10px] uppercase font-bold border border-primary text-primary px-2 py-0.5 rounded-sm">
+                              ✓ ช่วยเหลือแล้ว
+                            </span>
+                          )}
+
+                          <div className="flex items-center gap-4">
+                            <img className="w-10 h-10 rounded-full" src={post.avatar} alt="Avatar" />
+                            <div>
+                              <h4 className="font-bold text-sm flex items-center gap-1">
+                                {post.x_name}
+                                <span className="text-primary text-xs">✓</span>
+                              </h4>
+                              <p className="text-xs text-muted-zinc">@{post.x_username}</p>
+                            </div>
+                          </div>
+
+                          {post.oembed_html ? (
+                            <div 
+                              dangerouslySetInnerHTML={{ __html: post.oembed_html }} 
+                              className="w-full my-1 border border-border-dark bg-bg-dark/30 rounded-sm overflow-hidden p-1 min-h-[100px] flex justify-center text-sm"
+                            />
+                          ) : (
+                            <p className="text-sm leading-relaxed text-ink-light whitespace-pre-wrap">{post.content}</p>
+                          )}
+
+                          <div className="grid grid-cols-4 gap-2 border-t border-border-dark pt-3">
+                            <button 
+                              className="border border-border-dark hover:border-primary hover:bg-primary/5 text-xs font-semibold py-2 px-1 rounded-sm text-muted-zinc hover:text-primary transition-all cursor-pointer flex justify-center items-center gap-1.5"
+                              onClick={() => triggerInteraction(post.id, 'repost')}
+                            >
+                              🔄 Repost
+                            </button>
+                            <button 
+                              className="border border-border-dark hover:border-primary hover:bg-primary/5 text-xs font-semibold py-2 px-1 rounded-sm text-muted-zinc hover:text-primary transition-all cursor-pointer flex justify-center items-center gap-1.5"
+                              onClick={() => triggerInteraction(post.id, 'like')}
+                            >
+                              ❤️ Like
+                            </button>
+                            <button 
+                              className="border border-border-dark hover:border-primary hover:bg-primary/5 text-xs font-semibold py-2 px-1 rounded-sm text-muted-zinc hover:text-primary transition-all cursor-pointer flex justify-center items-center gap-1.5"
+                              onClick={() => triggerInteraction(post.id, 'quote')}
+                            >
+                              💬 Quote
+                            </button>
+                            <button 
+                              className="border border-border-dark hover:border-primary hover:bg-primary/5 text-xs font-semibold py-2 px-1 rounded-sm text-muted-zinc hover:text-primary transition-all cursor-pointer flex justify-center items-center gap-1.5"
+                              onClick={() => triggerInteraction(post.id, 'mention')}
+                            >
+                              ✉️ Mention
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+
+            </div>
+
+            {/* RIGHT SIDEBAR: HASHTAG TREND MONITOR & LEADERBOARD STATS */}
+            <div className="flex flex-col gap-6">
+              
+              {/* Trends Card */}
+              <div className="bg-surface-dark border border-border-dark p-5 rounded-md">
+                <div className="flex justify-between items-center border-b border-border-dark pb-3 mb-4">
+                  <h3 className="text-lg font-bold">กระแสเรียลไทม์ (ประเทศไทย)</h3>
+                  <button className="text-[10px] uppercase font-bold text-primary hover:text-primary-hover cursor-pointer" onClick={refreshTrends}>🔄 ดึงข้อมูลใหม่</button>
+                </div>
+                <p className="text-xs text-muted-zinc leading-relaxed mb-4">
+                  ระบบวิเคราะห์แท็กยอดนิยมในไทย แนะนำหยิบแท็กเหล่านี้ไปเพิ่มลงโพสเพื่อเปิด Impression หรือเพิ่มค่าการมองเห็นทวีต
+                </p>
+                <div className="flex flex-col gap-3">
+                  {trends.map(t => (
+                    <div 
+                      key={t.id} 
+                      className="flex justify-between items-center border-b border-border-dark/30 pb-2.5 cursor-pointer hover:opacity-85"
+                      onClick={() => copyHashtag(t.hashtag)}
+                    >
+                      <div className="flex flex-col">
+                        <span className="font-semibold text-sm text-ink-light">{t.hashtag}</span>
+                        <span className="text-[10px] text-muted-zinc">{t.tweet_volume.toLocaleString()} ทวีต</span>
+                      </div>
+                      {t.is_hot && <span className="bg-red-500/10 border border-red-500/20 text-red-500 text-[9px] font-bold py-0.5 px-2 rounded-sm">🔥 มาแรง</span>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Leaderboard sidebar summary */}
+              <div className="bg-surface-dark border border-border-dark p-5 rounded-md">
+                <h3 className="text-lg font-bold border-b border-border-dark pb-3 mb-4">อันดับค่าน้ำใจช่วยเหลือ (Top Helpers)</h3>
+                <div className="flex flex-col gap-3">
+                  {leaderboardUsers.slice(0, 3).map((u, i) => (
+                    <div key={u.id} className="flex items-center gap-3">
+                      <span className={`font-display font-bold text-lg w-6 ${i === 0 ? 'text-yellow-400' : i === 1 ? 'text-zinc-400' : 'text-amber-600'}`}>{i + 1}</span>
+                      <img className="w-8 h-8 rounded-full" src={u.avatar} alt="Avatar" />
+                      <div className="flex-1">
+                        <div className="text-xs font-semibold">@{u.x_username}</div>
+                        <div className="text-[10px] text-muted-zinc">ครีเอเตอร์ X Verify</div>
+                      </div>
+                      <span className="text-xs font-bold text-primary">{u.help_score} pt</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+            </div>
+
+          </div>
+        )}
+
+        {/* ==================== VIEW 4. LEADERBOARD DETAILED VIEW ==================== */}
+        {currentUser && currentUser.x_username && currentUser.role !== 'pending' && currentView === 'leaderboard' && (
+          <section className="flex flex-col gap-6 max-w-4xl mx-auto w-full">
+            <div>
+              <h2 className="text-3xl font-bold mb-2">ทำเนียบยอดช่วยเหลือแลกเปลี่ยนแต้ม</h2>
+              <p className="text-sm text-muted-zinc">
+                ครีเอเตอร์ที่มีค่าน้ำใจช่วยเหลือเพื่อนทวีตในการกด Like, Repost, Quote, Mention สูงสุด โพสของคุณจะปรากฏโดดเด่นบนระบบฟีดเพื่อให้สมาชิกในกลุ่มรีบกลับไปเพิ่ม Engagement เสมอ
+              </p>
+            </div>
+
+            <div className="flex gap-4 bg-surface-dark border border-border-dark p-4 rounded-md">
+              <span className="text-2xl">🏆</span>
+              <div className="text-xs text-muted-zinc leading-relaxed">
+                <strong>เกณฑ์วัดแต้มน้ำใจและการเก็บสถิติ:</strong><br />
+                • Repost / Quote ทวีตเพื่อนร่วมกลุ่ม = <span className="font-bold text-primary">+3 แต้ม</span><br />
+                • Mention ตอบกลับทวีตเพื่อน = <span className="font-bold text-primary">+2 แต้ม</span><br />
+                • Like ทวีตเพื่อน = <span className="font-bold text-primary">+1 แต้ม</span>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-3">
+              {leaderboardUsers.map((u, i) => {
+                const isSelf = u.id === currentUser.id;
+                return (
+                  <div 
+                    key={u.id} 
+                    className={`flex items-center gap-4 p-4 border rounded-md bg-surface-dark ${
+                      isSelf ? 'border-primary' : 'border-border-dark'
+                    }`}
+                  >
+                    <span className="font-display font-bold text-2xl w-8 text-muted-zinc">{i + 1}</span>
+                    <img className="w-10 h-10 rounded-full" src={u.avatar} alt="Avatar" />
+                    <div className="flex-1">
+                      <h4 className="font-bold text-sm flex items-center gap-1.5">
+                        @{u.x_username} 
+                        {isSelf && <span className="text-[9px] uppercase border border-primary text-primary px-1.5 py-0.5 rounded-sm">บัญชีของท่าน</span>}
+                      </h4>
+                      <p className="text-xs text-muted-zinc">{u.bio}</p>
+                    </div>
+                    <span className="text-lg font-bold text-primary">{u.help_score} pt</span>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
+
+
       </main>
+
+      {/* FOOTER */}
+      <footer className="border-t border-border-dark py-6 px-6 text-center text-xs text-muted-zinc mt-12 bg-bg-dark">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
+          <p>© 2026 ติ๊กฟ้าช่วยติ๊กฟ้า. All Rights Reserved. แพลตฟอร์มปิดจำลองค่าน้ำใจและความร่วมมือ</p>
+        </div>
+      </footer>
+
     </div>
   );
 }

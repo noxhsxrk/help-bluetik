@@ -1,36 +1,68 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ติ๊กฟ้าช่วยติ๊กฟ้า - X Engagement Exchange Platform
 
-## Getting Started
+แพลตฟอร์มประสานงานค่าน้ำใจและแลกเปลี่ยน Impressions สำหรับกลุ่มครีเอเตอร์พรีเมียมที่มีเครื่องหมายยืนยันสิทธิ์ (X Verify) ประเทศไทย
 
-First, run the development server:
+---
 
+## 🚀 สแตกเทคโนโลยี (Tech Stack)
+
+- **Frontend**: Next.js 16.2.6 (App Router) + Tailwind CSS v4 + TypeScript
+- **State & Database**: Pluggable Memory Adapter (จัดเตรียมโครงสร้างเตรียมเปลี่ยนเป็น Supabase / PostgreSQL)
+- **Package Manager**: pnpm
+
+---
+
+## 🛠️ วิธีการติดตั้งและรันโครงการ (Getting Started)
+
+โครงการนี้ใช้ `pnpm` (เวอร์ชัน 9) เป็นระบบจัดการไลบรารีและอ้างอิงเวอร์ชัน Node.js v20.19.0.
+
+### 1. ติดตั้งไลบรารีทั้งหมด (Dependencies Installation)
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npx pnpm@9 install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2. รันระบบสำหรับการพัฒนา (Run Local Server)
+```bash
+npx pnpm@9 dev
+```
+เปิดเบราว์เซอร์แล้วไปที่ [http://localhost:3000](http://localhost:3000)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 3. รันการคอมไพล์เพื่อทดสอบความสมบูรณ์ (Build Checks)
+```bash
+npx pnpm@9 build
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+---
 
-## Learn More
+## 📂 โครงสร้างโฟลเดอร์หลัก (Project Structure)
 
-To learn more about Next.js, take a look at the following resources:
+```text
+/src
+├── app/
+│   ├── api/
+│   │   ├── admin/
+│   │   │   ├── cooldowns/  - API เคลียร์ล็อกเวลาลงโพส
+│   │   │   └── users/      - API พิจารณาการอนุมัติสิทธิ์แรกเข้า
+│   │   ├── auth/
+│   │   │   ├── session/    - ตรวจสอบคุกกี้เซสชัน
+│   │   │   └── x-sso/      - จำลองการยืนยันตัวตน SSO
+│   │   ├── interactions/   - บันทึกไลค์/รีโพส และคำนวณคะแนนช่วยเหลือ
+│   │   ├── posts/          - ตัวจัดการฟีด ตรวจสอบเวลา 12h และคูลดาวน์ 1h
+│   │   └── trends/         - ติดตามกระแสแฮชแท็กในไทย
+│   ├── globals.css         - นำเข้าฟอนต์และกำหนดคีย์ธีม Tailwind v4 (@theme)
+│   ├── layout.tsx          - โครงสร้างและ Metadata ภาษาไทย
+│   └── page.tsx            - หน้าหลักและตัวคุม UI คอนโซลทั้งหมด
+├── lib/
+│   └── db.ts               - ตัวเชื่อมต่อข้อมูลและ API ปลั๊กอินภายในบอร์ด
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+---
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 🛡️ นโยบายการสลับสิทธิ์และความปลอดภัย (Admin Console Simulator)
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+สำหรับการทดสอบระบบบนเครื่อง Local:
+1. ลงชื่อเข้าใช้งานด้วยชื่อบัญชีที่คุณต้องการ (เช่น `@NongVerify`).
+2. หากเป็นบัญชีใหม่จะขึ้นหน้าจอรอดำเนินการ (Pending).
+3. เลื่อนลงไปด้านล่างสุดของหน้าเว็บบริเวณ Footer.
+4. กดที่ลิงก์ลับ **"เปิดระบบควบคุมแอดมินหลังบ้าน (Admin Console Toggle)"** เพื่อยกระดับสิทธิ์ให้กับบัญชีจำลองของคุณ และจะปรากฏเมนู **Admin Panel** ในแถบนำทางหลักทันทีเพื่ออนุมัติสิทธิ์ผู้ใช้งานใหม่.
+# help-bluetik
