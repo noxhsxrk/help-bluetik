@@ -30,9 +30,7 @@ export default function AdminPage() {
   
   const [adminStats, setAdminStats] = useState({
     pending: 0,
-    members: 4,
-    posts: 3,
-    helps: 12
+    members: 0
   });
 
   const triggerToast = (msg: string, type: 'default' | 'success' | 'error' = 'default') => {
@@ -70,19 +68,17 @@ export default function AdminPage() {
     }
   };
 
-  // Load pending list and stats
   const loadAdminData = async () => {
     try {
       const res = await fetch('/api/admin/users');
       const data = await res.json();
       setPendingUsers(data.pending || []);
-      
-      setAdminStats(prev => ({
-        ...prev,
-        pending: data.pending?.length || 0
-      }));
+      setAdminStats({
+        pending: data.pending?.length || 0,
+        members: data.members || 0
+      });
     } catch {
-      triggerToast('ไม่สามารถโหลดข้อมูลสิทธิ์แรกเข้าได้', 'error');
+      triggerToast('ไม่สามารถโหลดข้อมูลได้', 'error');
     }
   };
 
@@ -201,18 +197,6 @@ export default function AdminPage() {
     }
   };
 
-  // Simulation: Reset all cooldown locks
-  const clearCooldowns = async () => {
-    try {
-      const res = await fetch('/api/admin/cooldowns', { method: 'POST' });
-      const data = await res.json();
-      if (data.success) {
-        triggerToast('ล้างเวลาล็อกคูลดาวน์ของทุกบัญชีในฐานข้อมูลสำเร็จ', 'success');
-      }
-    } catch {
-      triggerToast('ล้างคูลดาวน์ผิดพลาด', 'error');
-    }
-  };
 
   if (loading) {
     return (
@@ -242,16 +226,16 @@ export default function AdminPage() {
 
       {/* HEADER SECTION */}
       {currentUser && (
-        <header className="border-b border-border-dark py-4 px-6 sticky top-0 bg-bg-dark/95 backdrop-blur-sm z-50">
-          <div className="max-w-7xl mx-auto flex justify-between items-center">
+        <header className="border-b border-border-dark py-4 px-4 sm:px-6 sticky top-0 bg-bg-dark/95 backdrop-blur-sm z-50">
+          <div className="max-w-7xl mx-auto flex justify-between items-center gap-4">
             <div className="brand">
-              <h1 className="text-2xl font-bold font-display">ติ๊กฟ้าช่วยติ๊กฟ้า<span className="text-primary">.</span></h1>
+              <h1 className="text-xl sm:text-2xl font-bold font-display">ติ๊กฟ้าช่วยติ๊กฟ้า<span className="text-primary">.</span></h1>
             </div>
             
-            <nav className="flex items-center gap-6">
-              <span className="text-sm font-semibold text-primary">แผงควบคุมระบบ (Admin Only)</span>
+            <nav className="flex flex-wrap items-center gap-3 sm:gap-6">
+              <span className="text-xs sm:text-sm font-semibold text-primary hidden sm:block">แผงควบคุมระบบ (Admin Only)</span>
               
-              <div className="flex items-center gap-2 border border-border-dark px-3 py-1 bg-surface-dark rounded-sm text-sm">
+              <div className="flex items-center gap-2 border border-border-dark px-2 sm:px-3 py-1 bg-surface-dark rounded-sm text-sm">
                 <img className="w-5 h-5 rounded-full" src={currentUser.avatar} alt="Avatar" />
                 <span className="font-semibold text-xs">@{currentUser.x_username || 'Admin'}</span>
                 <span className="text-primary text-xs">✓</span>
@@ -268,11 +252,11 @@ export default function AdminPage() {
         </header>
       )}
 
-      <main className="flex-1 max-w-7xl w-full mx-auto p-6 flex flex-col gap-6 justify-center">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 flex flex-col gap-6 justify-center">
         
         {/* ==================== VIEW 1. ADMIN LOGIN SCREEN ==================== */}
         {!currentUser && (
-          <section className="max-w-md w-full mx-auto my-12 border border-border-dark bg-surface-dark p-8 rounded-md text-center">
+          <section className="max-w-sm w-full mx-auto my-12 border border-border-dark bg-surface-dark p-6 sm:p-8 rounded-md text-center">
             <h2 className="text-3xl font-bold mb-2 font-display">ผู้ดูแลระบบหลังบ้าน</h2>
             <p className="text-sm text-muted-zinc mb-6 leading-relaxed">
               ติ๊กฟ้าช่วยติ๊กฟ้า &bull; Admin Console Panel
@@ -321,9 +305,9 @@ export default function AdminPage() {
         {/* ==================== VIEW 2. ADMIN BACKOFFICE PANEL ==================== */}
         {currentUser && (
           <section className="flex flex-col gap-6 my-6">
-            <div className="flex justify-between items-center border-b border-border-dark pb-4">
-              <h2 className="text-2xl font-bold font-display">ระบบอนุมัติและควบคุมผู้ดูแล (Admin Backoffice)</h2>
-              <span className="bg-surface-dark border border-border-dark px-3 py-1 text-xs text-muted-zinc font-semibold rounded-sm">ผู้ดูแลสูงสุด</span>
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 border-b border-border-dark pb-4">
+              <h2 className="text-xl sm:text-2xl font-bold font-display">ระบบอนุมัติและควบคุมผู้ดูแล (Admin Backoffice)</h2>
+              <span className="bg-surface-dark border border-border-dark px-3 py-1 text-xs text-muted-zinc font-semibold rounded-sm self-start sm:self-auto">ผู้ดูแลสูงสุด</span>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
@@ -345,23 +329,23 @@ export default function AdminPage() {
                       <div 
                         key={u.id} 
                         id={`pending-card-${u.id}`}
-                        className="border border-border-dark p-4 rounded-sm bg-bg-dark flex flex-col sm:flex-row sm:items-center gap-4 transition-all duration-300"
+                        className="border border-border-dark p-4 rounded-sm bg-bg-dark flex flex-col md:flex-row md:items-center gap-4 transition-all duration-300"
                       >
-                        <img className="w-12 h-12 rounded-full" src={u.avatar} alt="Avatar" />
-                        <div className="flex-1">
-                          <h4 className="font-bold text-sm flex items-center gap-1.5">{u.x_name} <span className="text-primary text-xs">✓</span></h4>
-                          <p className="text-xs text-muted-zinc mb-1">@{u.x_username}</p>
+                        <img className="w-12 h-12 rounded-full shrink-0" src={u.avatar} alt="Avatar" />
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-bold text-sm flex items-center gap-1.5 truncate">{u.x_name} <span className="text-primary text-xs">✓</span></h4>
+                          <p className="text-xs text-muted-zinc mb-1 truncate">@{u.x_username}</p>
                           <a 
                             href={`https://x.com/${u.x_username}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-[11px] text-primary hover:underline font-semibold block my-1.5"
+                            className="text-[11px] text-primary hover:underline font-semibold block my-1.5 truncate"
                           >
                             🔍 ตรวจสอบโปรไฟล์จริง: x.com/{u.x_username}
                           </a>
-                          <p className="text-xs text-ink-light">{u.bio}</p>
+                          <p className="text-xs text-ink-light break-words">{u.bio}</p>
                         </div>
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 shrink-0 self-end md:self-center">
                           <button 
                             className="bg-green-600 hover:bg-green-500 text-ink-light font-bold text-xs py-2 px-4 rounded-sm cursor-pointer"
                             onClick={() => handleApproveUser(u.id)}
@@ -381,78 +365,20 @@ export default function AdminPage() {
                 </div>
               </div>
 
-              {/* Stats & Simulator tools */}
               <div className="flex flex-col gap-6">
                 
                 {/* Stats */}
                 <div className="bg-surface-dark border border-border-dark p-5 rounded-md">
-                  <h3 className="text-sm font-bold border-b border-border-dark pb-3 mb-4 uppercase tracking-wider text-muted-zinc">ข้อมูลสถิติทั่วไป</h3>
+                  <h3 className="text-sm font-bold border-b border-border-dark pb-3 mb-4 uppercase tracking-wider text-muted-zinc">สถิติ</h3>
                   <div className="grid grid-cols-2 gap-3 text-center">
                     <div className="border border-border-dark p-3 rounded-sm bg-bg-dark">
-                      <div className="text-[10px] text-muted-zinc uppercase">รอสมัคร</div>
+                      <div className="text-[10px] text-muted-zinc uppercase">รออนุมัติ</div>
                       <div className="text-xl font-bold">{adminStats.pending}</div>
                     </div>
                     <div className="border border-border-dark p-3 rounded-sm bg-bg-dark">
-                      <div className="text-[10px] text-muted-zinc uppercase">สมาชิกจริง</div>
+                      <div className="text-[10px] text-muted-zinc uppercase">สมาชิก</div>
                       <div className="text-xl font-bold">{adminStats.members}</div>
                     </div>
-                    <div className="border border-border-dark p-3 rounded-sm bg-bg-dark">
-                      <div className="text-[10px] text-muted-zinc uppercase">โพสแอคทีฟ</div>
-                      <div className="text-xl font-bold">{adminStats.posts}</div>
-                    </div>
-                    <div className="border border-border-dark p-3 rounded-sm bg-bg-dark">
-                      <div className="text-[10px] text-muted-zinc uppercase">การช่วยเหลือ</div>
-                      <div className="text-xl font-bold">{adminStats.helps}</div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Dev Simulators panel */}
-                <div className="bg-surface-dark border border-border-dark p-5 rounded-md">
-                  <h3 className="text-sm font-bold border-b border-border-dark pb-3 mb-4 uppercase tracking-wider text-muted-zinc">แผงจำลองควบคุมระบบ (Simulations)</h3>
-                  <div className="flex flex-col gap-2">
-                    <button 
-                      className="w-full text-left border border-border-dark hover:bg-bg-dark p-2.5 rounded-sm text-xs font-semibold cursor-pointer transition-colors"
-                      onClick={clearCooldowns}
-                    >
-                      🔓 ปลดบล็อกคูลดาวน์ลงโพสทุกบัญชี
-                    </button>
-                    <button 
-                      className="w-full text-left border border-border-dark hover:bg-bg-dark p-2.5 rounded-sm text-xs font-semibold cursor-pointer transition-colors"
-                      onClick={async () => {
-                        try {
-                          await fetch('/api/admin/users', {
-                            method: 'DELETE',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ userId: 'u4' })
-                          });
-                          
-                          await fetch('/api/auth/x-sso', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ email: 'nong@gmail.com' })
-                          });
-                          
-                          loadAdminData();
-                          triggerToast('ตั้งค่าบัญชีตัวอย่าง @NongVerify กลับไปสถานะ Pending สำเร็จ', 'success');
-                        } catch {
-                          triggerToast('รีเซ็ตล้มเหลว', 'error');
-                        }
-                      }}
-                    >
-                      🔄 ตั้งค่า @NongVerify กลับไปรออนุมัติ
-                    </button>
-                    <button 
-                      className="w-full bg-red-600/10 border border-red-500/20 text-red-500 hover:bg-red-600/20 text-xs font-bold py-2.5 px-4 rounded-sm cursor-pointer transition-all"
-                      onClick={() => {
-                        if (confirm('ยืนยันล้างข้อมูลจำลองใช่หรือไม่?')) {
-                          localStorage.clear();
-                          window.location.reload();
-                        }
-                      }}
-                    >
-                      🚨 ล้างฐานข้อมูลจำลอง (Hard Reset)
-                    </button>
                   </div>
                 </div>
 

@@ -42,6 +42,7 @@ export default function App() {
 
   // Input states
   const [googleEmailInput, setGoogleEmailInput] = useState('');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Onboarding states
   const [onboardXUsername, setOnboardXUsername] = useState('');
@@ -511,13 +512,14 @@ export default function App() {
 
       {/* HEADER SECTION */}
       {currentUser && currentUser.x_username && (
-        <header className="border-b border-border-dark py-4 px-6 sticky top-0 bg-bg-dark/95 backdrop-blur-sm z-50">
+        <header className="border-b border-border-dark py-4 px-4 sm:px-6 sticky top-0 bg-bg-dark/95 backdrop-blur-sm z-50">
           <div className="max-w-7xl mx-auto flex justify-between items-center">
-            <div className="brand" onClick={() => { window.location.hash = '#dashboard'; setCurrentView('dashboard'); }}>
-              <h1 className="text-2xl font-bold cursor-pointer hover:opacity-90">ติ๊กฟ้าช่วยติ๊กฟ้า<span className="text-primary">.</span></h1>
+            <div className="brand" onClick={() => { window.location.hash = '#dashboard'; setCurrentView('dashboard'); setMobileMenuOpen(false); }}>
+              <h1 className="text-xl sm:text-2xl font-bold cursor-pointer hover:opacity-90">ติ๊กฟ้าช่วยติ๊กฟ้า<span className="text-primary">.</span></h1>
             </div>
 
-            <nav className="flex items-center gap-6">
+            {/* Desktop nav */}
+            <nav className="hidden sm:flex items-center gap-6">
               <span
                 className={`text-sm font-medium cursor-pointer transition-colors ${currentView === 'dashboard' ? 'text-ink-light' : 'text-muted-zinc hover:text-ink-light'}`}
                 onClick={() => { window.location.hash = '#dashboard'; setCurrentView('dashboard'); }}
@@ -530,26 +532,46 @@ export default function App() {
               >
                 Leaderboard
               </span>
-
-
               <div className="flex items-center gap-2 border border-border-dark px-3 py-1 bg-surface-dark rounded-sm text-sm">
                 <img className="w-5 h-5 rounded-full" src={currentUser.avatar} alt="Avatar" />
                 <span className="font-semibold text-xs">@{currentUser.x_username}</span>
                 <span className="text-primary text-xs">✓</span>
               </div>
-
-              <button
-                className="text-sm font-medium text-red-500 hover:text-red-400 transition-colors"
-                onClick={handleSignOut}
-              >
+              <button className="text-sm font-medium text-red-500 hover:text-red-400 transition-colors" onClick={handleSignOut}>
                 Sign Out
               </button>
             </nav>
+
+            {/* Mobile hamburger */}
+            <button
+              className="sm:hidden flex flex-col gap-1.5 p-2 -mr-2"
+              onClick={() => setMobileMenuOpen(prev => !prev)}
+              aria-label="เปิด/ปิด เมนู"
+            >
+              <span className={`block w-5 h-0.5 bg-ink-light transition-transform duration-200 origin-center ${mobileMenuOpen ? 'rotate-45 translate-y-2' : ''}`} />
+              <span className={`block w-5 h-0.5 bg-ink-light transition-opacity duration-200 ${mobileMenuOpen ? 'opacity-0' : ''}`} />
+              <span className={`block w-5 h-0.5 bg-ink-light transition-transform duration-200 origin-center ${mobileMenuOpen ? '-rotate-45 -translate-y-2' : ''}`} />
+            </button>
           </div>
+
+          {/* Mobile dropdown */}
+          {mobileMenuOpen && (
+            <div className="sm:hidden mt-3 pt-4 border-t border-border-dark flex flex-col gap-4">
+              <div className="flex items-center gap-2">
+                <img className="w-7 h-7 rounded-full" src={currentUser.avatar} alt="Avatar" />
+                <span className="font-semibold text-sm">@{currentUser.x_username}</span>
+                <span className="text-primary text-xs">✓</span>
+              </div>
+              <button className="text-sm text-left text-muted-zinc hover:text-ink-light transition-colors" onClick={() => { window.location.hash = '#dashboard'; setCurrentView('dashboard'); setMobileMenuOpen(false); }}>Dashboard</button>
+              <button className="text-sm text-left text-muted-zinc hover:text-ink-light transition-colors" onClick={() => { window.location.hash = '#leaderboard'; setCurrentView('leaderboard'); setMobileMenuOpen(false); }}>Leaderboard</button>
+              <button className="text-sm text-left text-red-500 hover:text-red-400 transition-colors" onClick={handleSignOut}>Sign Out</button>
+            </div>
+          )}
         </header>
       )}
 
-      <main className="flex-1 max-w-7xl w-full mx-auto p-6 flex flex-col gap-6">
+
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 flex flex-col gap-6">
 
         {/* ==================== VIEW 1. LOGIN SCREEN ==================== */}
         {!currentUser && (
@@ -653,7 +675,7 @@ export default function App() {
         {currentUser && currentUser.x_username && currentUser.role !== 'pending' && currentView === 'dashboard' && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
 
-            {/* LEFT FEED & COMPOSER */}
+            {/* LEFT FEED & COMPOSER — full width on mobile, 2/3 on desktop */}
             <div className="md:col-span-2 flex flex-col gap-6">
 
               {/* Composer - Link Only */}
@@ -677,12 +699,12 @@ export default function App() {
                     />
                   </div>
 
-                  <div className="flex justify-between items-center">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                     <span className="text-xs text-muted-zinc" id="post-cooldown-timer">
                       {cooldownString}
                     </span>
                     <button
-                      className="bg-primary hover:bg-primary-hover text-ink-light font-bold text-xs uppercase tracking-wider py-2.5 px-5 rounded-sm transition-colors cursor-pointer"
+                      className="w-full sm:w-auto bg-primary hover:bg-primary-hover text-ink-light font-bold text-xs uppercase tracking-wider py-2.5 px-5 rounded-sm transition-colors cursor-pointer"
                       onClick={() => handleSubmitPost(linkInput)}
                     >
                       ลงทะเบียนแลก Impression
@@ -744,7 +766,7 @@ export default function App() {
                             <p className="text-sm leading-relaxed text-ink-light whitespace-pre-wrap">{post.content}</p>
                           )}
 
-                          <div className="grid grid-cols-4 gap-2 border-t border-border-dark pt-3">
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 border-t border-border-dark pt-3">
                             <button
                               className="border border-border-dark hover:border-primary hover:bg-primary/5 text-xs font-semibold py-2 px-1 rounded-sm text-muted-zinc hover:text-primary transition-all cursor-pointer flex justify-center items-center gap-1.5"
                               onClick={() => triggerInteraction(post.id, 'repost')}
@@ -855,21 +877,20 @@ export default function App() {
               {leaderboardUsers.map((u, i) => {
                 const isSelf = u.id === currentUser.id;
                 return (
-                  <div
+            <div
                     key={u.id}
-                    className={`flex items-center gap-4 p-4 border rounded-md bg-surface-dark ${isSelf ? 'border-primary' : 'border-border-dark'
-                      }`}
+                    className={`flex items-center gap-3 sm:gap-4 p-3 sm:p-4 border rounded-md bg-surface-dark ${isSelf ? 'border-primary' : 'border-border-dark'}`}
                   >
-                    <span className="font-display font-bold text-2xl w-8 text-muted-zinc">{i + 1}</span>
-                    <img className="w-10 h-10 rounded-full" src={u.avatar} alt="Avatar" />
-                    <div className="flex-1">
-                      <h4 className="font-bold text-sm flex items-center gap-1.5">
+                    <span className="font-display font-bold text-xl sm:text-2xl w-7 sm:w-8 text-muted-zinc shrink-0">{i + 1}</span>
+                    <img className="w-9 h-9 sm:w-10 sm:h-10 rounded-full shrink-0" src={u.avatar} alt="Avatar" />
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-bold text-sm flex flex-wrap items-center gap-1.5 truncate">
                         @{u.x_username}
-                        {isSelf && <span className="text-[9px] uppercase border border-primary text-primary px-1.5 py-0.5 rounded-sm">บัญชีของท่าน</span>}
+                        {isSelf && <span className="text-[9px] uppercase border border-primary text-primary px-1.5 py-0.5 rounded-sm shrink-0">บัญชีของท่าน</span>}
                       </h4>
-                      <p className="text-xs text-muted-zinc">{u.bio}</p>
+                      <p className="text-xs text-muted-zinc truncate">{u.bio}</p>
                     </div>
-                    <span className="text-lg font-bold text-primary">{u.help_score} pt</span>
+                    <span className="text-base sm:text-lg font-bold text-primary shrink-0">{u.help_score} pt</span>
                   </div>
                 );
               })}

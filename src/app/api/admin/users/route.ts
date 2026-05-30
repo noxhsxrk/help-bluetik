@@ -19,8 +19,9 @@ export async function GET() {
 
     const allUsers = await DB.getUsers();
     const pending = allUsers.filter(u => u.role === 'pending' && u.x_username !== '');
+    const members = allUsers.filter(u => u.role === 'member').length;
     
-    return NextResponse.json({ pending });
+    return NextResponse.json({ pending, members });
   } catch (error) {
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
