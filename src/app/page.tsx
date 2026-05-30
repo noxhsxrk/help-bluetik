@@ -475,7 +475,7 @@ export default function App() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-bg-dark text-ink-light">
-        <div className="text-center font-display text-2xl animate-pulse">กำลังโหลดสถาปัตยกรรม ติ๊กฟ้าช่วยติ๊กฟ้า...</div>
+        <div className="text-center font-display text-2xl animate-pulse">ติ๊กฟ้าช่วยติ๊กฟ้า...</div>
       </div>
     );
   }
@@ -694,7 +694,7 @@ export default function App() {
                       className="w-full sm:w-auto bg-primary hover:bg-primary-hover text-ink-light font-bold text-xs uppercase tracking-wider py-2.5 px-5 rounded-sm transition-colors cursor-pointer"
                       onClick={() => handleSubmitPost(linkInput)}
                     >
-                      ลงทะเบียนแลก Impression
+                      ลงโพส
                     </button>
                   </div>
                 </div>
@@ -864,7 +864,7 @@ export default function App() {
               {leaderboardUsers.map((u, i) => {
                 const isSelf = u.id === currentUser.id;
                 return (
-            <div
+                  <div
                     key={u.id}
                     className={`flex items-center gap-3 sm:gap-4 p-3 sm:p-4 border rounded-md bg-surface-dark ${isSelf ? 'border-primary' : 'border-border-dark'}`}
                   >
