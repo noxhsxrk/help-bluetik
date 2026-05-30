@@ -9,7 +9,7 @@ async function checkAdmin() {
   return { id: 'admin', role: 'admin' };
 }
 
-// GET: List pending users & system statistics (Phase 1 Backoffice logic)
+// GET: List all users in the system (allows Admin Backoffice to show complete list)
 export async function GET() {
   try {
     const adminUser = await checkAdmin();
@@ -18,10 +18,7 @@ export async function GET() {
     }
 
     const allUsers = await DB.getUsers();
-    const pending = allUsers.filter(u => u.role === 'pending' && u.x_username !== '');
-    const members = allUsers.filter(u => u.role === 'member').length;
-    
-    return NextResponse.json({ pending, members });
+    return NextResponse.json({ users: allUsers });
   } catch (error) {
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
@@ -51,7 +48,31 @@ export async function POST(request: Request) {
   }
 }
 
-// DELETE: Reject user (remove from system)
+// PATCH: Full edit of any user properties (admin mode)
+export async function PATCH(request: Request) {
+  try {
+    const adminUser = await checkAdmin();
+    if (!adminUser) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { userId, updates } = await request.json();
+    if (!userId || !updates) {
+      return NextResponse.json({ error: 'User ID and updates are required' }, { status: 400 });
+    }
+
+    const updatedUser = await DB.updateUserAdmin(userId, updates);
+    if (!updatedUser) {
+      return NextResponse.json({ error: 'User not found or update failed' }, { status: 404 });
+    }
+
+    return NextResponse.json({ success: true, user: updatedUser });
+  } catch (error) {
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+  }
+}
+
+// DELETE: Delete user (remove from system)
 export async function DELETE(request: Request) {
   try {
     const adminUser = await checkAdmin();

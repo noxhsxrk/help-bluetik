@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { DB } from '@/lib/db';
-import { POINTS_PER_HELP } from '@/lib/constants';
+import { getPostHelpPoints } from '@/lib/constants';
 
 export async function POST(request: Request) {
   try {
@@ -48,6 +48,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'คุณเคยช่วยเหลือโพสนี้ไปแล้ว' }, { status: 400 });
     }
 
+    // Calculate dynamic points (Bounty)
+    const bountyPoints = getPostHelpPoints(post.created_at);
+
     // Record the interaction
     const newInteraction = await DB.recordInteraction({
       post_id: postId,
@@ -55,12 +58,12 @@ export async function POST(request: Request) {
       type: 'like'
     });
 
-    const updatedUser = await DB.incrementUserScore(userId, POINTS_PER_HELP);
+    const updatedUser = await DB.incrementUserScore(userId, bountyPoints);
     const updatedScore = updatedUser?.help_score ?? user.help_score;
 
     return NextResponse.json({
       success: true,
-      pointsAwarded: POINTS_PER_HELP,
+      pointsAwarded: bountyPoints,
       totalScore: updatedScore,
       interaction: newInteraction
     });

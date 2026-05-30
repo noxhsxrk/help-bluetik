@@ -265,6 +265,33 @@ export const DB = {
     }
   },
 
+  async updateUserAdmin(id: string, updates: Partial<User>): Promise<User | null> {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+      if (error || !data) {
+        const user = _users.find(u => u.id === id);
+        if (user) {
+          Object.assign(user, updates);
+          return user;
+        }
+        return null;
+      }
+      return data;
+    } catch {
+      const user = _users.find(u => u.id === id);
+      if (user) {
+        Object.assign(user, updates);
+        return user;
+      }
+      return null;
+    }
+  },
+
   // --- POST METHODS ---
   async getActivePosts(): Promise<Post[]> {
     const cutoff = Date.now() - POST_EXPIRY_MS;
@@ -398,6 +425,17 @@ export const DB = {
     _cooldowns = {};
     try {
       await supabase.from('post_cooldowns').delete().neq('user_id', '');
+    } catch {}
+  },
+
+  async resetAllScores(): Promise<void> {
+    _users.forEach(u => {
+      u.help_score = 0;
+    });
+    _interactions = [];
+    try {
+      await supabase.from('users').update({ help_score: 0 }).neq('id', '');
+      await supabase.from('interactions').delete().neq('id', '');
     } catch {}
   },
 

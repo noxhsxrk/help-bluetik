@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { DB } from '@/lib/db';
-import { POST_COOLDOWN_MS, POST_COOLDOWN_LABEL } from '@/lib/constants';
+import { POST_COOLDOWN_MS, POST_COOLDOWN_LABEL, getPostHelpPoints } from '@/lib/constants';
 
-// GET: Retrieve all active posts (Interaction Deprioritization Rule applied)
+// GET: Retrieve all active posts (Interaction Deprioritization & Bounty Sorting applied)
 export async function GET() {
   try {
     const cookieStore = await cookies();
@@ -50,8 +50,19 @@ export async function GET() {
 
       if (aDone && !bDone) return 1;
       if (!aDone && bDone) return -1;
+      if (aDone && bDone) {
+        return b.created_at - a.created_at; // Both done: sort by newer first
+      }
 
-      return b.created_at - a.created_at; // Newer posts first for same interaction state
+      // Both not done: Sort by dynamic bounty points descending (High Bounty / Urgent first!)
+      const aPoints = getPostHelpPoints(a.created_at);
+      const bPoints = getPostHelpPoints(b.created_at);
+
+      if (aPoints !== bPoints) {
+        return bPoints - aPoints; // High bounty first
+      }
+
+      return b.created_at - a.created_at; // Same bounty: sort by newer first
     });
 
     return NextResponse.json({

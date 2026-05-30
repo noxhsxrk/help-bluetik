@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import KofiButton from '@/components/KofiButton';
-import { POST_COOLDOWN_LABEL, POST_EXPIRY_LABEL } from '@/lib/constants';
+import { POST_COOLDOWN_LABEL, POST_EXPIRY_LABEL, getPostHelpPoints } from '@/lib/constants';
 
 // Isolated Twitter embed component — bypasses React's VDOM to prevent overwriting Twitter's iframe
 function TweetEmbed({ html }: { html: string }) {
@@ -78,6 +78,16 @@ interface TrendingHashtag {
   hashtag: string;
   tweet_volume: number;
   is_hot?: boolean;
+}
+
+function getRelativeTime(timestamp: number) {
+  const diff = Date.now() - timestamp;
+  const minutes = Math.floor(diff / 60000);
+  if (minutes < 1) return 'เมื่อครู่นี้';
+  if (minutes < 60) return `${minutes} นาทีที่แล้ว`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} ชั่วโมงที่แล้ว`;
+  return new Date(timestamp).toLocaleDateString('th-TH');
 }
 
 export default function App() {
@@ -774,7 +784,7 @@ export default function App() {
               {/* Active Posts Feed */}
               <div>
                 <h2 className="text-xl font-bold mb-4 flex justify-between items-center">
-                  บอร์ดแลกเปลี่ยนยอดสมาชิกที่ใช้งานอยู่
+                  บอร์ด
                   <span className="text-xs text-muted-zinc font-normal">แชร์ได้ทุก {POST_COOLDOWN_LABEL} โพสหมดอายุใน {POST_EXPIRY_LABEL}</span>
                 </h2>
 
@@ -801,7 +811,10 @@ export default function App() {
                             <div className="flex items-center gap-3 px-4 py-3">
                               <img className="w-7 h-7 rounded-full object-cover flex-shrink-0 opacity-60" src={post.avatar} alt="" />
                               <div className="flex-1 min-w-0">
-                                <span className="text-xs text-zinc-500 font-medium">@{post.x_username}</span>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-xs text-zinc-500 font-medium">@{post.x_username}</span>
+                                  <span className="text-[10px] text-zinc-600">· {getRelativeTime(post.created_at)}</span>
+                                </div>
                                 <p className="text-xs text-zinc-600 truncate">{post.content?.slice(0, 60)}{post.content?.length > 60 ? '…' : ''}</p>
                               </div>
                               <div className="flex items-center gap-2 flex-shrink-0">
@@ -832,6 +845,15 @@ export default function App() {
                           )}
 
                           <div className="p-5 flex flex-col gap-4">
+                            {/* Platform Sharing Header Indicator */}
+                            <div className="flex items-center justify-between border-b border-border-dark/60 pb-3 text-[11px] text-zinc-500 font-medium">
+                              <div className="flex items-center gap-2">
+                                <img className="w-5 h-5 rounded-full object-cover" src={post.avatar} alt="" />
+                                <span>แชร์โดย <strong className="text-zinc-300">@{post.x_username}</strong></span>
+                              </div>
+                              <span>ลงเมื่อ {getRelativeTime(post.created_at)}</span>
+                            </div>
+
                             {/* Render the official Twitter oEmbed HTML block */}
                             {post.oembed_html ? (
                               <TweetEmbed html={post.oembed_html} />
@@ -871,15 +893,31 @@ export default function App() {
                               </div>
                             )}
 
-                            <div className="border-t border-border-dark pt-3">
-                              <button
-                                className="w-full border border-primary/40 hover:border-primary hover:bg-primary/10 text-primary text-sm font-bold py-2.5 px-4 rounded-sm transition-all flex justify-center items-center gap-2 cursor-pointer"
-                                onClick={() => triggerInteraction(post.id)}
-                              >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
-                                ช่วยเหลือ +1 แต้ม
-                              </button>
-                            </div>
+                            {(() => {
+                              const bountyPoints = getPostHelpPoints(post.created_at);
+                              let btnClass = "border border-primary/40 hover:border-primary hover:bg-primary/10 text-primary";
+                              let label = "ช่วยเหลือ +1 แต้ม";
+                              
+                              if (bountyPoints === 2) {
+                                btnClass = "border border-orange-500/40 hover:border-orange-500 hover:bg-orange-500/10 text-orange-400";
+                                label = "🔥 ช่วยเหลือ +2 แต้ม (ค้างนาน)";
+                              } else if (bountyPoints === 3) {
+                                btnClass = "border border-red-500/40 hover:border-red-500 hover:bg-red-500/10 text-red-400 animate-pulse";
+                                label = "🚨 ช่วยเหลือ +3 แต้ม (ใกล้หมดอายุ)";
+                              }
+
+                              return (
+                                <div className="border-t border-border-dark pt-3">
+                                  <button
+                                    className={`w-full ${btnClass} text-sm font-bold py-2.5 px-4 rounded-sm transition-all flex justify-center items-center gap-2 cursor-pointer`}
+                                    onClick={() => triggerInteraction(post.id)}
+                                  >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                                    {label}
+                                  </button>
+                                </div>
+                              );
+                            })()}
                           </div>
                         </div>
                       );
