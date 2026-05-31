@@ -194,3 +194,43 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
+
+// DELETE: Creator deletes their own post (cooldown remains active)
+export async function DELETE(request: Request) {
+  try {
+    const cookieStore = await cookies();
+    const userIdCookie = cookieStore.get('tb_session_user_id');
+
+    if (!userIdCookie) {
+      return NextResponse.json({ error: 'ไม่ได้รับอนุญาต (กรุณาลงชื่อเข้าใช้งาน)' }, { status: 401 });
+    }
+
+    const userId = userIdCookie.value;
+    const { postId } = await request.json();
+
+    if (!postId) {
+      return NextResponse.json({ error: 'กรุณาระบุรหัสโพสต์ที่ต้องการลบ' }, { status: 400 });
+    }
+
+    // ค้นหาโพสต์และตรวจสอบสิทธิ์ความเป็นเจ้าของ
+    const activePosts = await DB.getActivePosts();
+    const post = activePosts.find(p => p.id === postId);
+
+    if (!post) {
+      return NextResponse.json({ error: 'ไม่พบโพสต์ที่ต้องการลบ หรือโพสต์อาจหมดอายุไปแล้ว' }, { status: 404 });
+    }
+
+    if (post.user_id !== userId) {
+      return NextResponse.json({ error: 'คุณไม่มีสิทธิ์ลบโพสต์ของสมาชิกท่านอื่น' }, { status: 403 });
+    }
+
+    const success = await DB.deletePost(postId);
+    if (!success) {
+      return NextResponse.json({ error: 'เกิดข้อผิดพลาดในการลบโพสต์ออกจากระบบ' }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    return NextResponse.json({ error: 'เกิดข้อผิดพลาดภายในระบบ' }, { status: 500 });
+  }
+}

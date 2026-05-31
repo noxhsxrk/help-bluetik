@@ -523,6 +523,55 @@ export default function App() {
     }
   };
 
+  // Creator deletes their own post
+  const handleDeleteOwnPost = async (postId: string) => {
+    const post = posts.find(p => p.id === postId);
+    if (!post) return;
+
+    if (post.user_id !== currentUser?.id) {
+      triggerToast('คุณไม่มีสิทธิ์ลบโพสต์ของผู้อื่น', 'error');
+      return;
+    }
+
+    // แจ้งเตือนเงื่อนไขการลบโพสต์สำคัญ
+    const confirmDelete = window.confirm(
+      "คำเตือนสำคัญ:\n" +
+      "- หากลบโพสต์นี้แล้ว ระยะเวลาคูลดาวน์สำหรับการลงโพสต์ถัดไปจะยังคงอยู่และทำงานต่อตามปกติ (ไม่มีการคืนคูลดาวน์ให้)\n" +
+      "- โพสต์ที่ถูกลบไปแล้วจะไม่สามารถกู้คืนกลับมาได้อีกครั้ง\n\n" +
+      "คุณต้องการยืนยันการลบโพสต์นี้ออกระบบฟีดใช่หรือไม่?"
+    );
+    if (!confirmDelete) return;
+
+    // ลบแบบ Optimistic Update ล่วงหน้าบนหน้าจอ
+    setPosts(prev => prev.filter(p => p.id !== postId));
+
+    try {
+      const res = await fetch('/api/posts', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ postId })
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        triggerToast('ลบโพสต์ของคุณออกจากกระดานแลกเปลี่ยนเรียบร้อยแล้ว', 'success');
+        const postsRes = await fetch('/api/posts');
+        const postsData = await postsRes.json();
+        setPosts(postsData.posts || []);
+      } else {
+        triggerToast(data.error || 'ไม่สามารถลบโพสต์ได้', 'error');
+        const postsRes = await fetch('/api/posts');
+        const postsData = await postsRes.json();
+        setPosts(postsData.posts || []);
+      }
+    } catch {
+      triggerToast('เชื่อมต่อ API ลบโพสต์ขัดข้อง', 'error');
+      const postsRes = await fetch('/api/posts');
+      const postsData = await postsRes.json();
+      setPosts(postsData.posts || []);
+    }
+  };
+
   // Thailand trends monitoring refresh simulator
   const refreshTrends = async () => {
     try {
@@ -1103,13 +1152,20 @@ export default function App() {
                               if (post.user_id === currentUser?.id) {
                                 if (post.is_promoted) {
                                   return (
-                                    <div className="border-t border-border-dark pt-3">
+                                    <div className="border-t border-border-dark pt-3 flex flex-col gap-2">
                                       <button
                                         disabled
                                         className="w-full bg-zinc-900/50 border border-zinc-800 text-zinc-500 text-sm font-bold py-2.5 px-4 rounded-sm cursor-not-allowed flex justify-center items-center gap-2"
                                       >
                                         <svg className="w-4 h-4 text-zinc-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
                                         ได้รับการโปรโมตแล้ว
+                                      </button>
+                                      <button
+                                        className="w-full border border-red-900/40 hover:border-red-600 hover:bg-red-950/20 text-red-400 text-xs font-bold py-2 px-4 rounded-sm transition-all flex justify-center items-center gap-2 cursor-pointer"
+                                        onClick={() => handleDeleteOwnPost(post.id)}
+                                      >
+                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                        ลบโพสต์ออกจากบอร์ด
                                       </button>
                                     </div>
                                   );
@@ -1128,6 +1184,13 @@ export default function App() {
                                     >
                                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
                                       โปรโมตโพสต์นี้ (ใช้ {POINTS_TO_PROMOTE} แต้ม)
+                                    </button>
+                                    <button
+                                      className="w-full border border-red-900/40 hover:border-red-600 hover:bg-red-950/20 text-red-400 text-xs font-bold py-2 px-4 rounded-sm transition-all flex justify-center items-center gap-2 cursor-pointer"
+                                      onClick={() => handleDeleteOwnPost(post.id)}
+                                    >
+                                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                      ลบโพสต์ออกจากบอร์ด
                                     </button>
                                     {!isEligible && (
                                       <p className="text-[10px] text-center text-zinc-500">
