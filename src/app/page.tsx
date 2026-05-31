@@ -883,10 +883,6 @@ export default function App() {
               </div>
             </div>
 
-            <div className="text-left bg-primary/5 border border-primary/20 p-4 rounded-sm text-sm mb-6 leading-relaxed">
-              <span className="font-semibold text-primary">คำแนะนำสำหรับการทดสอบ:</span> สมาชิกสามารถกดที่เมนู **"เปิดระบบแอดมินหลังบ้าน"** ด้านล่างสุดของหน้าจอ (Footer) เพื่อจำลองสิทธิ์เป็น Admin และเข้าไปกด Approve โปรไฟล์ของตัวท่านเองได้ในหน้าระบบควบคุมผู้ดูแล!
-            </div>
-
             <button
               className="w-full border border-border-dark hover:bg-surface-dark py-3 rounded-sm font-semibold transition-colors cursor-pointer text-sm"
               onClick={checkSession}
