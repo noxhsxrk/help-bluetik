@@ -24,13 +24,17 @@ export const POINTS_PER_HELP = 1;
 
 /**
  * คำนวณแต้มช่วยเหลือแบบไดนามิก (Dynamic Bounty) ตามอายุโพส
- * - < 2 ชม: +1 แต้ม
+ * - < 10 นาที: +5 แต้ม (โพสใหม่สุดร้อนแรง ⚡)
+ * - 10 นาที - 2 ชม: +1 แต้ม (ช่วยเหลือปกติ)
  * - 2 - 4 ชม: +2 แต้ม (ค้างนาน 🔥)
  * - 4 - 6 ชม: +3 แต้ม (ใกล้หมดอายุ 🚨)
  */
 export function getPostHelpPoints(createdAt: number): number {
   const ageMs = Date.now() - createdAt;
+  const tenMinutes = 10 * 60 * 1000;
   const oneHour = 60 * 60 * 1000;
+  
+  if (ageMs < tenMinutes) return 5;
   if (ageMs < 2 * oneHour) return 1;
   if (ageMs < 4 * oneHour) return 2;
   return 3;

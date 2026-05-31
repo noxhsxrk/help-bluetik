@@ -988,7 +988,10 @@ export default function App() {
                               let btnClass = "border border-primary/40 hover:border-primary hover:bg-primary/10 text-primary";
                               let label = "ช่วยเหลือ +1 แต้ม";
                               
-                              if (bountyPoints === 2) {
+                              if (bountyPoints === 5) {
+                                btnClass = "border border-emerald-500/40 hover:border-emerald-500 hover:bg-emerald-500/10 text-emerald-400 animate-pulse font-extrabold shadow-[0_0_12px_rgba(16,185,129,0.15)]";
+                                label = "⚡ ช่วยเหลือ +5 แต้ม (โพสต์ใหม่ด่วน!)";
+                              } else if (bountyPoints === 2) {
                                 btnClass = "border border-orange-500/40 hover:border-orange-500 hover:bg-orange-500/10 text-orange-400";
                                 label = "🔥 ช่วยเหลือ +2 แต้ม (ค้างนาน)";
                               } else if (bountyPoints === 3) {
@@ -1077,18 +1080,19 @@ export default function App() {
             <div>
               <h2 className="text-3xl font-bold mb-2">ทำเนียบยอดช่วยเหลือแลกเปลี่ยนแต้ม</h2>
               <p className="text-sm text-muted-zinc">
-                ครีเอเตอร์ที่มีค่าน้ำใจช่วยเหลือเพื่อนทวีตในการกด Like, Repost, Quote, Mention สูงสุด โพสของคุณจะปรากฏโดดเด่นบนระบบฟีดเพื่อให้สมาชิกในกลุ่มรีบกลับไปเพิ่ม Engagement เสมอ
+                ครีเอเตอร์ที่มีค่าน้ำใจช่วยเหลือเพื่อนทวีตในการมีส่วนร่วมสูงสุด โพสต์ของคุณจะปรากฏโดดเด่นบนระบบฟีดเพื่อให้สมาชิกในกลุ่มรีบกลับไปเพิ่ม Engagement เสมอ
               </p>
             </div>
 
             <div className="flex gap-4 bg-surface-dark border border-border-dark p-4 rounded-md">
               <span className="text-2xl">🏆</span>
               <div className="text-xs text-muted-zinc leading-relaxed">
-                <strong>เกณฑ์วัดแต้มน้ำใจและการเก็บสถิติ:</strong><br />
-                • Repost / Quote ทวีตเพื่อนร่วมกลุ่ม = <span className="font-bold text-primary">+3 แต้ม</span><br />
-                • Mention ตอบกลับทวีตเพื่อน = <span className="font-bold text-primary">+2 แต้ม</span><br />
-                • Like ทวีตเพื่อน = <span className="font-bold text-primary">+1 แต้ม</span><br />
-                <span className="text-zinc-500">• แต้มนับตามประเภทกิจกรรมที่ทำกับแต่ละโพส — ทำครบได้อีกด้วย!</span>
+                <strong>เกณฑ์วัดแต้มน้ำใจและการเก็บสถิติ (ระบบแต้มทวีคูณ Dynamic Bounty):</strong><br />
+                • โพสต์แชร์ไม่เกิน 10 นาที (โพสต์ด่วนร้อนแรงสุด ⚡) = <span className="font-bold text-emerald-400">+5 แต้ม</span><br />
+                • โพสต์แชร์ 10 นาที - 2 ชั่วโมง (ช่วยเหลือปกติ) = <span className="font-bold text-primary">+1 แต้ม</span><br />
+                • โพสต์แชร์ 2 - 4 ชั่วโมง (ค้างนานเริ่มเร่งด่วน! 🔥) = <span className="font-bold text-orange-400">+2 แต้ม</span><br />
+                • โพสต์แชร์ 4 - 6 ชั่วโมง (ใกล้หมดอายุ/โอกาสสุดท้าย! 🚨) = <span className="font-bold text-red-400">+3 แต้ม</span><br />
+                <span className="text-zinc-500">• คะแนนจะได้รับเมื่อช่วยเหลือแชร์ลิงก์ 1 ครั้งต่อโพสต์เท่านั้น (มีระบบคัดกรองและจัดเรียงโพสต์ตามระดับความเร่งด่วนเพื่อไม่ให้หมดอายุฟรี)</span>
               </div>
             </div>
 
