@@ -3,7 +3,7 @@
 // It integrates directly with Supabase PostgreSQL in production.
 
 import { supabase } from './supabase';
-import { POST_EXPIRY_MS } from './constants';
+import { POST_EXPIRY_MS, POST_PROMOTED_EXPIRY_MS } from './constants';
 
 export interface User {
   id: string;
@@ -31,6 +31,7 @@ export interface Post {
   created_at: number;
   is_active: boolean;
   oembed_html?: string;
+  is_promoted?: boolean;
 }
 
 export interface Interaction {
@@ -295,42 +296,55 @@ export const DB = {
   // --- POST METHODS ---
   async getActivePosts(): Promise<Post[]> {
     const cutoff = Date.now() - POST_EXPIRY_MS;
+    const promotedCutoff = Date.now() - POST_PROMOTED_EXPIRY_MS;
 
     // ── On-the-fly Database Cleanup ───────────────────────────
-    // สั่งลบโพสและ interactions ที่หมดอายุ (เก่ากว่า 6 ชั่วโมง) ทันที
+    // สั่งลบโพสและ interactions ที่หมดอายุ ทันที
     // ทำแบบ background promise เพื่อไม่ให้หน่วงการตอบสนองผู้ใช้ (non-blocking)
     try {
+      // ลบโพสปกติที่เก่ากว่า 6 ชั่วโมง
       supabase
         .from('posts')
         .delete()
+        .not('is_promoted', 'eq', true)
         .lt('created_at', cutoff)
         .then(() => {
-          // ลบ interactions ที่ผูกกับโพสหมดอายุหรือเก่ากว่า cutoff ไปด้วย
+          // ลบโพสโปรโมตที่เก่ากว่า 18 ชั่วโมง
           supabase
-            .from('interactions')
+            .from('posts')
             .delete()
-            .lt('created_at', cutoff)
-            .then(() => {});
+            .eq('is_promoted', true)
+            .lt('created_at', promotedCutoff)
+            .then(() => {
+              // ลบ interactions ที่เก่ากว่า 18 ชั่วโมงไปด้วย
+              supabase
+                .from('interactions')
+                .delete()
+                .lt('created_at', promotedCutoff)
+                .then(() => {});
+            });
         });
     } catch {}
 
     // ทำความสะอาด fallback arrays ในหน่วยความจำ (กรณี Offline/Local Fallback)
-    _posts = _posts.filter(p => p.created_at > cutoff);
-    _interactions = _interactions.filter(i => i.created_at > cutoff);
+    _posts = _posts.filter(p => p.is_promoted ? p.created_at > promotedCutoff : p.created_at > cutoff);
+    _interactions = _interactions.filter(i => i.created_at > promotedCutoff);
 
     try {
+      // ดึงข้อมูลโพสทั้งหมดที่เกิดขึ้นภายใน 18 ชั่วโมงย้อนหลัง เพื่อนำมากรองต่อในหน่วยความจำ
       const { data, error } = await supabase
         .from('posts')
         .select('*')
         .eq('is_active', true)
-        .gt('created_at', cutoff)
+        .gt('created_at', promotedCutoff)
         .order('created_at', { ascending: false });
       if (error || !data || data.length === 0) {
-        return [];
+        return _posts.filter(p => p.is_promoted ? p.created_at > promotedCutoff : p.created_at > cutoff);
       }
-      return data;
+      // กรองข้อมูล: โพสโปรโมตอายุไม่เกิน 18 ชม. และโพสปกติอายุไม่เกิน 6 ชม.
+      return data.filter(post => post.is_promoted ? post.created_at > promotedCutoff : post.created_at > cutoff);
     } catch {
-      return [];
+      return _posts.filter(p => p.is_promoted ? p.created_at > promotedCutoff : p.created_at > cutoff);
     }
   },
 
@@ -397,6 +411,34 @@ export const DB = {
       return _posts.length < initialLen;
     }
   },
+
+  async updatePostPromoted(id: string, isPromoted: boolean): Promise<Post | null> {
+    try {
+      const { data, error } = await supabase
+        .from('posts')
+        .update({ is_promoted: isPromoted })
+        .eq('id', id)
+        .select()
+        .single();
+      if (error || !data) {
+        const post = _posts.find(p => p.id === id);
+        if (post) {
+          post.is_promoted = isPromoted;
+          return post;
+        }
+        return null;
+      }
+      return data;
+    } catch {
+      const post = _posts.find(p => p.id === id);
+      if (post) {
+        post.is_promoted = isPromoted;
+        return post;
+      }
+      return null;
+    }
+  },
+
 
   // --- COOLDOWN CONTROL ---
   async getUserLastPostTime(userId: string): Promise<number | null> {

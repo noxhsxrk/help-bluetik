@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import KofiButton from '@/components/KofiButton';
-import { POST_COOLDOWN_LABEL, POST_EXPIRY_LABEL, getPostHelpPoints } from '@/lib/constants';
+import { POST_COOLDOWN_LABEL, POST_EXPIRY_LABEL, getPostHelpPoints, POINTS_TO_PROMOTE } from '@/lib/constants';
 
 // Isolated Twitter embed component — bypasses React's VDOM to prevent overwriting Twitter's iframe
 function TweetEmbed({ html }: { html: string }) {
@@ -71,6 +71,7 @@ interface Post {
   posted_via: 'link' | 'compose';
   created_at: number;
   oembed_html?: string;
+  is_promoted?: boolean;
 }
 
 interface TrendingHashtag {
@@ -428,6 +429,73 @@ export default function App() {
       }
     } catch {
       setInteractedIds(prev => prev.filter(id => id !== postId));
+      if (currentUser) {
+        setCurrentUser(prev => prev ? { ...prev, help_score: oldHelpScore } : null);
+      }
+      triggerToast('เชื่อมต่อ API ขัดข้อง', 'error');
+    }
+  };
+
+  // Promote a post using points
+  const handlePromotePost = async (postId: string) => {
+    const post = posts.find(p => p.id === postId);
+    if (!post) return;
+
+    if (post.user_id !== currentUser?.id) {
+      triggerToast('คุณไม่มีสิทธิ์โปรโมตโพสต์ของผู้อื่น', 'error');
+      return;
+    }
+
+    if (post.is_promoted) {
+      triggerToast('โพสต์นี้ได้รับการโปรโมตแล้ว', 'default');
+      return;
+    }
+
+    if ((currentUser?.help_score || 0) < POINTS_TO_PROMOTE) {
+      triggerToast(`คะแนนช่วยเหลือไม่เพียงพอ ต้องการ ${POINTS_TO_PROMOTE} คะแนน`, 'error');
+      return;
+    }
+
+    // Confirmation dialog before promoting
+    const confirmPromote = window.confirm(`คุณต้องการใช้ ${POINTS_TO_PROMOTE} คะแนนในการโปรโมตโพสต์นี้หรือไม่? โพสต์จะถูกดันขึ้นบนสุดและมีอายุเพิ่มเป็น 18 ชั่วโมง`);
+    if (!confirmPromote) return;
+
+    const oldHelpScore = currentUser?.help_score || 0;
+
+    // Optimistic update
+    setPosts(prev => prev.map(p => p.id === postId ? { ...p, is_promoted: true } : p));
+    if (currentUser) {
+      setCurrentUser(prev => prev ? { ...prev, help_score: Math.max(0, prev.help_score - POINTS_TO_PROMOTE) } : null);
+    }
+
+    try {
+      const res = await fetch('/api/posts/promote', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ postId })
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        triggerToast('โปรโมตโพสต์สำเร็จ! ดันโพสต์ขึ้นสู่ตำแหน่งบนสุดเรียบร้อยแล้ว', 'success');
+        if (currentUser && data.newScore !== undefined) {
+          setCurrentUser(prev => prev ? { ...prev, help_score: data.newScore } : null);
+        }
+        // Force refresh all posts to get updated list and correct order
+        const postsRes = await fetch('/api/posts');
+        const postsData = await postsRes.json();
+        setPosts(postsData.posts || []);
+      } else {
+        // Rollback
+        setPosts(prev => prev.map(p => p.id === postId ? { ...p, is_promoted: false } : p));
+        if (currentUser) {
+          setCurrentUser(prev => prev ? { ...prev, help_score: oldHelpScore } : null);
+        }
+        triggerToast(data.error || 'ไม่สามารถทำการโปรโมตโพสต์ได้', 'error');
+      }
+    } catch {
+      // Rollback
+      setPosts(prev => prev.map(p => p.id === postId ? { ...p, is_promoted: false } : p));
       if (currentUser) {
         setCurrentUser(prev => prev ? { ...prev, help_score: oldHelpScore } : null);
       }
@@ -864,6 +932,13 @@ export default function App() {
                       return b.created_at - a.created_at;
                     }
 
+                    // Prioritize uninteracted promoted posts to the absolute top
+                    const aPromoted = !!a.is_promoted;
+                    const bPromoted = !!b.is_promoted;
+
+                    if (aPromoted && !bPromoted) return -1;
+                    if (!aPromoted && bPromoted) return 1;
+
                     const aPoints = getPostHelpPoints(a.created_at);
                     const bPoints = getPostHelpPoints(b.created_at);
 
@@ -940,6 +1015,11 @@ export default function App() {
                               <div className="flex items-center gap-2">
                                 <img className="w-5 h-5 rounded-full object-cover" src={post.avatar} alt="" />
                                 <span>แชร์โดย <strong className="text-zinc-300">@{post.x_username}</strong></span>
+                                {post.is_promoted && (
+                                  <span className="text-[10px] bg-zinc-800 border border-zinc-700 text-zinc-300 font-semibold px-2 py-0.5 rounded-sm">
+                                    ได้รับการโปรโมต
+                                  </span>
+                                )}
                               </div>
                               <span>ลงเมื่อ {getRelativeTime(post.created_at)}</span>
                             </div>
@@ -985,6 +1065,45 @@ export default function App() {
 
                             {(() => {
                               const bountyPoints = getPostHelpPoints(post.created_at);
+
+                              if (post.user_id === currentUser?.id) {
+                                if (post.is_promoted) {
+                                  return (
+                                    <div className="border-t border-border-dark pt-3">
+                                      <button
+                                        disabled
+                                        className="w-full bg-zinc-900/50 border border-zinc-800 text-zinc-500 text-sm font-bold py-2.5 px-4 rounded-sm cursor-not-allowed flex justify-center items-center gap-2"
+                                      >
+                                        <svg className="w-4 h-4 text-zinc-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+                                        ได้รับการโปรโมตแล้ว
+                                      </button>
+                                    </div>
+                                  );
+                                }
+
+                                const isEligible = (currentUser?.help_score || 0) >= POINTS_TO_PROMOTE;
+                                return (
+                                  <div className="border-t border-border-dark pt-3 flex flex-col gap-2">
+                                    <button
+                                      className={`w-full text-sm font-bold py-2.5 px-4 rounded-sm transition-all flex justify-center items-center gap-2 cursor-pointer ${
+                                        isEligible
+                                          ? 'border border-zinc-500 hover:border-white hover:bg-white/5 text-zinc-200'
+                                          : 'border border-zinc-850 bg-zinc-900/30 text-zinc-500 cursor-not-allowed'
+                                      }`}
+                                      onClick={() => isEligible && handlePromotePost(post.id)}
+                                    >
+                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                                      โปรโมตโพสต์นี้ (ใช้ {POINTS_TO_PROMOTE} คะแนน)
+                                    </button>
+                                    {!isEligible && (
+                                      <p className="text-[10px] text-center text-zinc-500">
+                                        คะแนนของคุณไม่เพียงพอ ต้องการ {POINTS_TO_PROMOTE} คะแนนในการโปรโมต
+                                      </p>
+                                    )}
+                                  </div>
+                                );
+                              }
+
                               let btnClass = "border border-primary/40 hover:border-primary hover:bg-primary/10 text-primary";
                               let label = "ช่วยเหลือ (+1 คะแนน)";
                               

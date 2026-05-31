@@ -54,7 +54,14 @@ export async function GET() {
         return b.created_at - a.created_at; // Both done: sort by newer first
       }
 
-      // Both not done: Sort by dynamic bounty points descending (High Bounty / Urgent first!)
+      // Both not done: Prioritize promoted posts to the absolute top
+      const aPromoted = !!a.is_promoted;
+      const bPromoted = !!b.is_promoted;
+
+      if (aPromoted && !bPromoted) return -1;
+      if (!aPromoted && bPromoted) return 1;
+
+      // Both are promoted, or both are regular: Sort by dynamic bounty points descending (High Bounty / Urgent first!)
       const aPoints = getPostHelpPoints(a.created_at);
       const bPoints = getPostHelpPoints(b.created_at);
 
