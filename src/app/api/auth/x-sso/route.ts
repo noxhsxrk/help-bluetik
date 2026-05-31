@@ -4,7 +4,7 @@ import { DB } from '@/lib/db';
 
 export async function POST(request: Request) {
   try {
-    const { username, email, xUsername, xName, bio } = await request.json();
+    const { username, email, xUsername, xName, bio, referralCode } = await request.json();
 
     // Mode 1: Free Google SSO Simulator
     if (email) {
@@ -49,7 +49,7 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
       }
 
-      const updatedUser = await DB.updateXUsername(userIdCookie.value, xUsername, xName, bio);
+      const updatedUser = await DB.updateXUsername(userIdCookie.value, xUsername, xName, bio, referralCode);
       if (!updatedUser) {
         return NextResponse.json({ error: 'User not found' }, { status: 404 });
       }

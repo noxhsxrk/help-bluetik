@@ -22,7 +22,8 @@ export async function GET() {
         role: u.role,
         avatar: u.avatar,
         bio: u.bio,
-        help_score: u.help_score
+        help_score: u.help_score,
+        spendable_points: u.spendable_points ?? 0
       }));
 
     return NextResponse.json({ users });

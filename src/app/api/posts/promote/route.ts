@@ -43,30 +43,31 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'โพสต์นี้ได้รับการโปรโมตแล้ว' }, { status: 400 });
     }
 
-    // ตรวจสอบคะแนนช่วยเหลือ
-    if (user.help_score < POINTS_TO_PROMOTE) {
+    // ตรวจสอบแต้มสะสม
+    const spendable = user.spendable_points ?? 0;
+    if (spendable < POINTS_TO_PROMOTE) {
       return NextResponse.json({
-        error: `คะแนนช่วยเหลือไม่เพียงพอ (ต้องการ ${POINTS_TO_PROMOTE} คะแนน คะแนนปัจจุบันของคุณคือ ${user.help_score} คะแนน)`
+        error: `แต้มสะสมไม่เพียงพอ (ต้องการ ${POINTS_TO_PROMOTE} แต้ม แต้มปัจจุบันของคุณคือ ${spendable} แต้ม)`
       }, { status: 400 });
     }
 
-    // หักคะแนนผู้ใช้
-    const updatedUser = await DB.incrementUserScore(userId, -POINTS_TO_PROMOTE);
+    // หักแต้มสะสมผู้ใช้
+    const updatedUser = await DB.deductUserPoints(userId, POINTS_TO_PROMOTE);
     if (!updatedUser) {
-      return NextResponse.json({ error: 'ไม่สามารถปรับปรุงคะแนนผู้ใช้งานได้' }, { status: 500 });
+      return NextResponse.json({ error: 'ไม่สามารถปรับปรุงแต้มสะสมผู้ใช้งานได้' }, { status: 500 });
     }
 
     // อัปเดตสถานะการโปรโมตโพสต์
     const updatedPost = await DB.updatePostPromoted(postId, true);
     if (!updatedPost) {
-      // คืนแต้มถ้าอัปเดตสถานะไม่สำเร็จ
-      await DB.incrementUserScore(userId, POINTS_TO_PROMOTE);
+      // คืนแต้มสะสมถ้าอัปเดตสถานะไม่สำเร็จ (หักด้วยจำนวนติดลบ = คืนแต้ม)
+      await DB.deductUserPoints(userId, -POINTS_TO_PROMOTE);
       return NextResponse.json({ error: 'ไม่สามารถปรับปรุงสถานะการโปรโมตโพสต์ได้' }, { status: 500 });
     }
 
     return NextResponse.json({
       success: true,
-      newScore: updatedUser.help_score,
+      newScore: updatedUser.spendable_points ?? 0,
       post: updatedPost
     });
   } catch (error) {

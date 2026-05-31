@@ -13,6 +13,8 @@ export interface User {
   avatar: string;
   bio: string;
   help_score: number;
+  spendable_points?: number;
+  referral_code?: string;
   approved_at?: number;
   approved_by?: string;
   google_email?: string;
@@ -111,9 +113,10 @@ export const DB = {
     }
   },
 
-  async updateXUsername(id: string, xUsername: string, xName: string, bio: string): Promise<User | null> {
+  async updateXUsername(id: string, xUsername: string, xName: string, bio: string, referralCode?: string): Promise<User | null> {
     const cleanUsername = xUsername.replace('@', '').trim();
     const finalName = xName || cleanUsername;
+    const cleanReferral = referralCode?.trim() || '';
     try {
       const { data, error } = await supabase
         .from('users')
@@ -121,6 +124,7 @@ export const DB = {
           x_username: cleanUsername,
           x_name: finalName,
           bio: bio,
+          referral_code: cleanReferral || null,
           role: 'pending'
         })
         .eq('id', id)
@@ -133,6 +137,7 @@ export const DB = {
           user.x_username = cleanUsername;
           user.x_name = finalName;
           user.bio = bio;
+          user.referral_code = cleanReferral;
           user.role = 'pending';
           return user;
         }
@@ -145,6 +150,7 @@ export const DB = {
         user.x_username = cleanUsername;
         user.x_name = finalName;
         user.bio = bio;
+        user.referral_code = cleanReferral;
         user.role = 'pending';
         return user;
       }
@@ -152,11 +158,12 @@ export const DB = {
     }
   },
 
-  async createUser(user: Omit<User, 'id' | 'help_score' | 'role'> & { role?: User['role'] }): Promise<User> {
+  async createUser(user: Omit<User, 'id' | 'help_score' | 'spendable_points' | 'role'> & { role?: User['role'] }): Promise<User> {
     const newId = 'u_' + Math.random().toString(36).substring(2, 11);
     const newUser: User = {
       id: newId,
       help_score: 0,
+      spendable_points: 0,
       role: user.role || 'pending',
       ...user
     };
@@ -241,9 +248,10 @@ export const DB = {
       if (!currentUser) return null;
       
       const newScore = currentUser.help_score + increment;
+      const newSpendable = (currentUser.spendable_points ?? 0) + increment;
       const { data, error } = await supabase
         .from('users')
-        .update({ help_score: newScore })
+        .update({ help_score: newScore, spendable_points: newSpendable })
         .eq('id', id)
         .select()
         .single();
@@ -251,6 +259,7 @@ export const DB = {
         const user = _users.find(u => u.id === id);
         if (user) {
           user.help_score += increment;
+          user.spendable_points = (user.spendable_points ?? 0) + increment;
           return user;
         }
         return null;
@@ -260,6 +269,38 @@ export const DB = {
       const user = _users.find(u => u.id === id);
       if (user) {
         user.help_score += increment;
+        user.spendable_points = (user.spendable_points ?? 0) + increment;
+        return user;
+      }
+      return null;
+    }
+  },
+
+  async deductUserPoints(id: string, amount: number): Promise<User | null> {
+    try {
+      const currentUser = await this.getUserById(id);
+      if (!currentUser) return null;
+      
+      const newSpendable = Math.max(0, (currentUser.spendable_points ?? 0) - amount);
+      const { data, error } = await supabase
+        .from('users')
+        .update({ spendable_points: newSpendable })
+        .eq('id', id)
+        .select()
+        .single();
+      if (error || !data) {
+        const user = _users.find(u => u.id === id);
+        if (user) {
+          user.spendable_points = Math.max(0, (user.spendable_points ?? 0) - amount);
+          return user;
+        }
+        return null;
+      }
+      return data;
+    } catch {
+      const user = _users.find(u => u.id === id);
+      if (user) {
+        user.spendable_points = Math.max(0, (user.spendable_points ?? 0) - amount);
         return user;
       }
       return null;
@@ -473,10 +514,11 @@ export const DB = {
   async resetAllScores(): Promise<void> {
     _users.forEach(u => {
       u.help_score = 0;
+      u.spendable_points = 0;
     });
     _interactions = [];
     try {
-      await supabase.from('users').update({ help_score: 0 }).neq('id', '');
+      await supabase.from('users').update({ help_score: 0, spendable_points: 0 }).neq('id', '');
       await supabase.from('interactions').delete().neq('id', '');
     } catch {}
   },

@@ -60,11 +60,13 @@ export async function POST(request: Request) {
 
     const updatedUser = await DB.incrementUserScore(userId, bountyPoints);
     const updatedScore = updatedUser?.help_score ?? user.help_score;
+    const spendablePoints = updatedUser?.spendable_points ?? (user.spendable_points ?? 0);
 
     return NextResponse.json({
       success: true,
       pointsAwarded: bountyPoints,
       totalScore: updatedScore,
+      spendablePoints: spendablePoints,
       interaction: newInteraction
     });
   } catch (error) {

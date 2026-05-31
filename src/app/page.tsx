@@ -56,6 +56,7 @@ interface User {
   avatar: string;
   bio: string;
   help_score: number;
+  spendable_points?: number;
   google_email?: string;
 }
 
@@ -103,6 +104,7 @@ export default function App() {
   // Onboarding states
   const [onboardXUsername, setOnboardXUsername] = useState('');
   const [onboardXName, setOnboardXName] = useState('');
+  const [onboardReferralCode, setOnboardReferralCode] = useState('');
 
   const [linkInput, setLinkInput] = useState('');
 
@@ -289,7 +291,10 @@ export default function App() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}`
+          redirectTo: `${window.location.origin}`,
+          queryParams: {
+            prompt: 'select_account'
+          }
         }
       });
       if (error) {
@@ -318,7 +323,8 @@ export default function App() {
         body: JSON.stringify({
           xUsername: onboardXUsername.trim(),
           xName: onboardXName.trim(),
-          bio: ''
+          bio: '',
+          referralCode: onboardReferralCode.trim()
         })
       });
       const data = await res.json();
@@ -394,12 +400,18 @@ export default function App() {
       return;
     }
 
+    const bountyPoints = getPostHelpPoints(post.created_at);
     const oldHelpScore = currentUser?.help_score || 0;
+    const oldSpendable = currentUser?.spendable_points || 0;
 
     // Optimistic update
     setInteractedIds(prev => [...prev, postId]);
     if (currentUser) {
-      setCurrentUser(prev => prev ? { ...prev, help_score: prev.help_score + 1 } : null);
+      setCurrentUser(prev => prev ? { 
+        ...prev, 
+        help_score: prev.help_score + bountyPoints, 
+        spendable_points: (prev.spendable_points ?? 0) + bountyPoints 
+      } : null);
     }
 
     // Open tweet on X.com
@@ -417,20 +429,24 @@ export default function App() {
       if (data.success) {
         triggerToast(`+${data.pointsAwarded} แต้ม! ช่วยเหลือ @${post.x_username} สำเร็จ`, 'success');
         if (currentUser) {
-          setCurrentUser(prev => prev ? { ...prev, help_score: data.totalScore } : null);
+          setCurrentUser(prev => prev ? { 
+            ...prev, 
+            help_score: data.totalScore, 
+            spendable_points: data.spendablePoints 
+          } : null);
         }
       } else {
         // Rollback
         setInteractedIds(prev => prev.filter(id => id !== postId));
         if (currentUser) {
-          setCurrentUser(prev => prev ? { ...prev, help_score: oldHelpScore } : null);
+          setCurrentUser(prev => prev ? { ...prev, help_score: oldHelpScore, spendable_points: oldSpendable } : null);
         }
         triggerToast(data.error || 'การช่วยเหลือล้มเหลว', 'error');
       }
     } catch {
       setInteractedIds(prev => prev.filter(id => id !== postId));
       if (currentUser) {
-        setCurrentUser(prev => prev ? { ...prev, help_score: oldHelpScore } : null);
+        setCurrentUser(prev => prev ? { ...prev, help_score: oldHelpScore, spendable_points: oldSpendable } : null);
       }
       triggerToast('เชื่อมต่อ API ขัดข้อง', 'error');
     }
@@ -451,21 +467,21 @@ export default function App() {
       return;
     }
 
-    if ((currentUser?.help_score || 0) < POINTS_TO_PROMOTE) {
-      triggerToast(`คะแนนช่วยเหลือไม่เพียงพอ ต้องการ ${POINTS_TO_PROMOTE} คะแนน`, 'error');
+    if ((currentUser?.spendable_points || 0) < POINTS_TO_PROMOTE) {
+      triggerToast(`แต้มสะสมไม่เพียงพอ ต้องการอย่างน้อย ${POINTS_TO_PROMOTE} แต้ม`, 'error');
       return;
     }
 
     // Confirmation dialog before promoting
-    const confirmPromote = window.confirm(`คุณต้องการใช้ ${POINTS_TO_PROMOTE} คะแนนในการโปรโมตโพสต์นี้หรือไม่? โพสต์จะถูกดันขึ้นบนสุดและมีอายุเพิ่มเป็น 18 ชั่วโมง`);
+    const confirmPromote = window.confirm(`คุณต้องการใช้ ${POINTS_TO_PROMOTE} แต้มสะสมในการโปรโมตโพสต์นี้หรือไม่? โพสต์จะถูกดันขึ้นบนสุดและมีอายุเพิ่มเป็น 18 ชั่วโมง (ค่าน้ำใจบน Leaderboard จะไม่ลดลง)`);
     if (!confirmPromote) return;
 
-    const oldHelpScore = currentUser?.help_score || 0;
+    const oldSpendable = currentUser?.spendable_points || 0;
 
     // Optimistic update
     setPosts(prev => prev.map(p => p.id === postId ? { ...p, is_promoted: true } : p));
     if (currentUser) {
-      setCurrentUser(prev => prev ? { ...prev, help_score: Math.max(0, prev.help_score - POINTS_TO_PROMOTE) } : null);
+      setCurrentUser(prev => prev ? { ...prev, spendable_points: Math.max(0, (prev.spendable_points ?? 0) - POINTS_TO_PROMOTE) } : null);
     }
 
     try {
@@ -479,7 +495,7 @@ export default function App() {
       if (data.success) {
         triggerToast('โปรโมตโพสต์สำเร็จ! ดันโพสต์ขึ้นสู่ตำแหน่งบนสุดเรียบร้อยแล้ว', 'success');
         if (currentUser && data.newScore !== undefined) {
-          setCurrentUser(prev => prev ? { ...prev, help_score: data.newScore } : null);
+          setCurrentUser(prev => prev ? { ...prev, spendable_points: data.newScore } : null);
         }
         // Force refresh all posts to get updated list and correct order
         const postsRes = await fetch('/api/posts');
@@ -489,7 +505,7 @@ export default function App() {
         // Rollback
         setPosts(prev => prev.map(p => p.id === postId ? { ...p, is_promoted: false } : p));
         if (currentUser) {
-          setCurrentUser(prev => prev ? { ...prev, help_score: oldHelpScore } : null);
+          setCurrentUser(prev => prev ? { ...prev, spendable_points: oldSpendable } : null);
         }
         triggerToast(data.error || 'ไม่สามารถทำการโปรโมตโพสต์ได้', 'error');
       }
@@ -497,7 +513,7 @@ export default function App() {
       // Rollback
       setPosts(prev => prev.map(p => p.id === postId ? { ...p, is_promoted: false } : p));
       if (currentUser) {
-        setCurrentUser(prev => prev ? { ...prev, help_score: oldHelpScore } : null);
+        setCurrentUser(prev => prev ? { ...prev, spendable_points: oldSpendable } : null);
       }
       triggerToast('เชื่อมต่อ API ขัดข้อง', 'error');
     }
@@ -652,7 +668,8 @@ export default function App() {
               <div className="flex items-center gap-2 border border-border-dark px-3 py-1 bg-surface-dark rounded-sm text-sm">
                 <img className="w-5 h-5 rounded-full" src={currentUser.avatar} alt="Avatar" />
                 <span className="font-semibold text-xs">@{currentUser.x_username}</span>
-                <span className="text-primary text-xs">✓</span>
+                <span className="text-zinc-500 font-medium text-xs">|</span>
+                <span className="text-zinc-300 text-xs font-bold">{currentUser.spendable_points ?? 0} แต้ม</span>
               </div>
               <button className="text-sm font-medium text-red-500 hover:text-red-400 transition-colors" onClick={handleSignOut}>
                 Sign Out
@@ -677,7 +694,8 @@ export default function App() {
               <div className="flex items-center gap-2">
                 <img className="w-7 h-7 rounded-full" src={currentUser.avatar} alt="Avatar" />
                 <span className="font-semibold text-sm">@{currentUser.x_username}</span>
-                <span className="text-primary text-xs">✓</span>
+                <span className="text-zinc-500 font-medium text-sm">|</span>
+                <span className="text-zinc-300 text-sm font-bold">{currentUser.spendable_points ?? 0} แต้ม</span>
               </div>
               <button className="text-sm text-left text-muted-zinc hover:text-ink-light transition-colors" onClick={() => { window.location.hash = '#dashboard'; setCurrentView('dashboard'); setMobileMenuOpen(false); }}>Dashboard</button>
               <button className="text-sm text-left text-muted-zinc hover:text-ink-light transition-colors" onClick={() => { window.location.hash = '#leaderboard'; setCurrentView('leaderboard'); setMobileMenuOpen(false); }}>Leaderboard</button>
@@ -747,9 +765,9 @@ export default function App() {
               </label>
               <input
                 type="text"
-                className="w-full bg-bg-dark border border-border-dark p-2.5 rounded-sm text-ink-light focus:outline-none focus:border-primary text-sm"
-                placeholder="เช่น NongVerify"
                 required
+                className="w-full bg-bg-dark border border-border-dark p-2.5 rounded-sm text-ink-light focus:outline-none focus:border-primary text-sm"
+                placeholder="เช่น NongVerify (จำเป็นต้องระบุ)"
                 value={onboardXUsername}
                 onChange={e => setOnboardXUsername(e.target.value)}
               />
@@ -761,14 +779,26 @@ export default function App() {
               </label>
               <input
                 type="text"
-                className="w-full bg-bg-dark border border-border-dark p-2.5 rounded-sm text-ink-light focus:outline-none focus:border-primary text-sm"
-                placeholder="เช่น น้องติ๊กฟ้าน่ารัก"
                 required
+                className="w-full bg-bg-dark border border-border-dark p-2.5 rounded-sm text-ink-light focus:outline-none focus:border-primary text-sm"
+                placeholder="เช่น น้องติ๊กฟ้าน่ารัก (จำเป็นต้องระบุ)"
                 value={onboardXName}
                 onChange={e => setOnboardXName(e.target.value)}
               />
             </div>
 
+            <div className="text-left mb-6">
+              <label className="block text-xs uppercase tracking-wider text-muted-zinc font-semibold mb-2">
+                รหัสแนะนำ (Referral Code) <span className="text-zinc-500 font-normal">(ถ้ามี)</span>
+              </label>
+              <input
+                type="text"
+                className="w-full bg-bg-dark border border-border-dark p-2.5 rounded-sm text-ink-light focus:outline-none focus:border-primary text-sm"
+                placeholder="ป้อนรหัสผู้แนะนำ (ไม่บังคับ)"
+                value={onboardReferralCode}
+                onChange={e => setOnboardReferralCode(e.target.value)}
+              />
+            </div>
 
             <button
               className="w-full bg-white text-black hover:bg-neutral-200 font-bold py-3 px-4 rounded-sm transition-colors cursor-pointer text-sm"
@@ -1002,7 +1032,7 @@ export default function App() {
                           {isDone && (
                             <button
                               className="absolute top-3 right-3 flex items-center gap-1 text-[9px] uppercase font-extrabold tracking-wider border border-[#1d9bf0] text-[#1d9bf0] bg-[#1d9bf0]/5 px-2 py-0.5 rounded-sm z-10 hover:bg-[#1d9bf0]/10 transition-colors"
-                              onClick={() => setExpandedPostIds(prev => { const next = new Set(prev); next.delete(post.id); return next; })}
+              onClick={() => setExpandedPostIds(prev => { const next = new Set(prev); next.delete(post.id); return next; })}
                             >
                               ✓ ช่วยเหลือแล้ว
                               <svg className="w-3 h-3 rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
@@ -1081,7 +1111,7 @@ export default function App() {
                                   );
                                 }
 
-                                const isEligible = (currentUser?.help_score || 0) >= POINTS_TO_PROMOTE;
+                                const isEligible = (currentUser?.spendable_points || 0) >= POINTS_TO_PROMOTE;
                                 return (
                                   <div className="border-t border-border-dark pt-3 flex flex-col gap-2">
                                     <button
@@ -1093,11 +1123,11 @@ export default function App() {
                                       onClick={() => isEligible && handlePromotePost(post.id)}
                                     >
                                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-                                      โปรโมตโพสต์นี้ (ใช้ {POINTS_TO_PROMOTE} คะแนน)
+                                      โปรโมตโพสต์นี้ (ใช้ {POINTS_TO_PROMOTE} แต้ม)
                                     </button>
                                     {!isEligible && (
                                       <p className="text-[10px] text-center text-zinc-500">
-                                        คะแนนของคุณไม่เพียงพอ ต้องการ {POINTS_TO_PROMOTE} คะแนนในการโปรโมต
+                                        แต้มสะสมของคุณไม่เพียงพอ (มี {currentUser?.spendable_points || 0} แต้ม, ต้องการ {POINTS_TO_PROMOTE} แต้ม)
                                       </p>
                                     )}
                                   </div>

@@ -10,6 +10,7 @@ interface User {
   avatar: string;
   bio: string;
   help_score: number;
+  spendable_points?: number;
   google_email?: string;
 }
 
