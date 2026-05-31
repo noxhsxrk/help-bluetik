@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 
-export default function KofiButton() {
+export default function KofiButton({ onClick }: { onClick?: () => void }) {
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
 
@@ -109,6 +109,11 @@ export default function KofiButton() {
     if (isDragging || dragRef.current.isDragging) {
       e.preventDefault();
       e.stopPropagation();
+      return;
+    }
+    if (onClick) {
+      e.preventDefault();
+      onClick();
     }
   };
 

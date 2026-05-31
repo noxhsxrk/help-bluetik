@@ -101,6 +101,7 @@ export default function App() {
   // Input states
   const [googleEmailInput, setGoogleEmailInput] = useState('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [donationModalOpen, setDonationModalOpen] = useState(false);
 
   // Onboarding states
   const [onboardXUsername, setOnboardXUsername] = useState('');
@@ -707,17 +708,15 @@ export default function App() {
               >
                 Leaderboard
               </span>
-              <a
-                href="https://ko-fi.com/brandnewnox"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="hidden sm:inline-flex items-center gap-1.5 bg-[#FF5E5B] hover:bg-[#ff4a47] text-white text-xs font-bold px-3 py-1.5 rounded-full transition-all hover:-translate-y-0.5 hover:shadow-lg hover:shadow-[#FF5E5B]/30"
+              <button
+                className="hidden sm:inline-flex items-center gap-1.5 bg-[#FF5E5B] hover:bg-[#ff4a47] text-white text-xs font-bold px-3.5 py-1.5 rounded-full transition-all hover:-translate-y-0.5 hover:shadow-lg hover:shadow-[#FF5E5B]/30 cursor-pointer"
+                onClick={() => setDonationModalOpen(true)}
               >
                 <svg viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5" aria-hidden="true">
                   <path d="M11.351 2.715c-2.7 0-4.986.025-6.83.26C2.078 3.285 0 5.154 0 8.61c0 3.506.182 6.13 1.585 8.493 1.584 2.701 4.233 4.182 7.662 4.182h.83c4.209 0 6.494-2.234 7.637-4a9.5 9.5 0 0 0 1.091-2.338C21.792 14.688 24 12.22 24 9.208v-.415c0-3.247-2.13-5.507-5.792-5.87-1.558-.156-2.65-.208-6.857-.208m0 1.947c4.208 0 5.09.052 6.571.182 2.624.311 4.13 1.584 4.13 4v.39c0 2.156-1.792 3.844-3.87 3.844h-.935l-.156.649c-.208 1.013-.597 1.818-1.039 2.546-.909 1.428-2.545 3.064-5.922 3.064h-.805c-2.571 0-4.831-.883-6.078-3.195-1.09-2-1.298-4.155-1.298-7.506 0-2.181.857-3.402 3.012-3.714 1.533-.233 3.559-.26 6.39-.26m6.547 2.287c-.416 0-.65.234-.65.546v2.935c0 .311.234.545.65.545 1.324 0 2.051-.754 2.051-2s-.727-2.026-2.052-2.026m-10.39.182c-1.818 0-3.013 1.48-3.013 3.142 0 1.533.858 2.857 1.949 3.897.727.701 1.87 1.429 2.649 1.896a1.47 1.47 0 0 0 1.507 0c.78-.467 1.922-1.195 2.623-1.896 1.117-1.039 1.974-2.364 1.974-3.897 0-1.662-1.247-3.142-3.039-3.142-1.065 0-1.792.545-2.338 1.298-.493-.753-1.246-1.298-2.312-1.298" />
                 </svg>
-                เลี้ยงกาแฟ
-              </a>
+                เลี้ยงกาแฟ / สนับสนุนระบบ
+              </button>
               <div className="flex items-center gap-2 border border-border-dark px-3 py-1 bg-surface-dark rounded-sm text-sm">
                 <img className="w-5 h-5 rounded-full" src={currentUser.avatar} alt="Avatar" />
                 <span className="font-semibold text-xs">@{currentUser.x_username}</span>
@@ -752,18 +751,18 @@ export default function App() {
               </div>
               <button className="text-sm text-left text-muted-zinc hover:text-ink-light transition-colors" onClick={() => { window.location.hash = '#dashboard'; setCurrentView('dashboard'); setMobileMenuOpen(false); }}>Dashboard</button>
               <button className="text-sm text-left text-muted-zinc hover:text-ink-light transition-colors" onClick={() => { window.location.hash = '#leaderboard'; setCurrentView('leaderboard'); setMobileMenuOpen(false); }}>Leaderboard</button>
-              <a
-                href="https://ko-fi.com/brandnewnox"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 bg-[#FF5E5B] hover:bg-[#ff4a47] text-white text-sm font-bold px-4 py-2 rounded-full transition-colors w-fit"
-                onClick={() => setMobileMenuOpen(false)}
+              <button
+                className="inline-flex items-center gap-2 bg-[#FF5E5B] hover:bg-[#ff4a47] text-white text-sm font-bold px-4 py-2 rounded-full transition-colors w-fit cursor-pointer"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  setDonationModalOpen(true);
+                }}
               >
                 <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4" aria-hidden="true">
                   <path d="M11.351 2.715c-2.7 0-4.986.025-6.83.26C2.078 3.285 0 5.154 0 8.61c0 3.506.182 6.13 1.585 8.493 1.584 2.701 4.233 4.182 7.662 4.182h.83c4.209 0 6.494-2.234 7.637-4a9.5 9.5 0 0 0 1.091-2.338C21.792 14.688 24 12.22 24 9.208v-.415c0-3.247-2.13-5.507-5.792-5.87-1.558-.156-2.65-.208-6.857-.208m0 1.947c4.208 0 5.09.052 6.571.182 2.624.311 4.13 1.584 4.13 4v.39c0 2.156-1.792 3.844-3.87 3.844h-.935l-.156.649c-.208 1.013-.597 1.818-1.039 2.546-.909 1.428-2.545 3.064-5.922 3.064h-.805c-2.571 0-4.831-.883-6.078-3.195-1.09-2-1.298-4.155-1.298-7.506 0-2.181.857-3.402 3.012-3.714 1.533-.233 3.559-.26 6.39-.26m6.547 2.287c-.416 0-.65.234-.65.546v2.935c0 .311.234.545.65.545 1.324 0 2.051-.754 2.051-2s-.727-2.026-2.052-2.026m-10.39.182c-1.818 0-3.013 1.48-3.013 3.142 0 1.533.858 2.857 1.949 3.897.727.701 1.87 1.429 2.649 1.896a1.47 1.47 0 0 0 1.507 0c.78-.467 1.922-1.195 2.623-1.896 1.117-1.039 1.974-2.364 1.974-3.897 0-1.662-1.247-3.142-3.039-3.142-1.065 0-1.792.545-2.338 1.298-.493-.753-1.246-1.298-2.312-1.298" />
                 </svg>
-                เลี้ยงกาแฟ
-              </a>
+                เลี้ยงกาแฟ / สนับสนุนระบบ
+              </button>
               <button
                 className="text-sm text-left text-red-500 hover:text-red-400 font-medium transition-colors border-t border-border-dark pt-3 mt-1 cursor-pointer"
                 onClick={() => {
@@ -903,6 +902,20 @@ export default function App() {
 
             {/* LEFT FEED & COMPOSER — full width on mobile, 2/3 on desktop */}
             <div className="md:col-span-2 flex flex-col gap-6">
+
+              {/* Mobile-only Donation Banner */}
+              <div className="block md:hidden bg-surface-dark border border-border-dark p-4 rounded-md text-center">
+                <p className="text-xs text-muted-zinc leading-relaxed mb-3">
+                  ร่วมบริจาคสมทบค่าเซิร์ฟเวอร์เพื่อรักษาพื้นที่กลุ่มติ๊กฟ้าให้รันต่อไปอย่างราบรื่น
+                </p>
+                <button
+                  className="w-full bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-bold py-2.5 px-4 rounded-sm border border-zinc-700 transition-colors cursor-pointer flex justify-center items-center gap-2"
+                  onClick={() => setDonationModalOpen(true)}
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" /></svg>
+                  สแกน QR Code เพื่อบริจาค
+                </button>
+              </div>
 
               {/* Composer - Link Only */}
               <div className="bg-surface-dark border border-border-dark p-6 rounded-md">
@@ -1241,6 +1254,26 @@ export default function App() {
             {/* RIGHT SIDEBAR: HASHTAG TREND MONITOR & LEADERBOARD STATS */}
             <div className="flex flex-col gap-6">
 
+              {/* Server Donation Support Card */}
+              <div className="bg-surface-dark border border-border-dark p-5 rounded-md text-center">
+                <h3 className="text-lg font-bold border-b border-border-dark pb-3 mb-4 text-left">สนับสนุนค่าระบบ (Donation)</h3>
+                <p className="text-xs text-muted-zinc leading-relaxed mb-4 text-left">
+                  ร่วมบริจาคสนับสนุนทุนพัฒนาและสมทบค่าบริการเซิร์ฟเวอร์ เพื่อร่วมรักษาพื้นที่คอมมูนิตี้ให้เปิดให้บริการอย่างมั่นคงปลอดภัยต่อไป
+                </p>
+                <div className="flex flex-col items-center gap-3 bg-bg-dark/50 p-4 rounded-sm border border-border-dark/30">
+                  <img 
+                    className="w-44 h-44 rounded-sm object-cover border border-zinc-800 cursor-zoom-in hover:opacity-90 transition-opacity" 
+                    src="/images/qrcode.jpg" 
+                    alt="Thai QR Code Donation (คลิกเพื่อขยาย)" 
+                    title="คลิกเพื่อขยายรหัส QR"
+                    onClick={() => setDonationModalOpen(true)}
+                  />
+                  <div className="text-[10px] text-zinc-400 font-semibold leading-relaxed">
+                    สแกน QR Code (PromptPay) ผ่านแอปพลิเคชันธนาคารเพื่อร่วมบริจาคสนับสนุน
+                  </div>
+                </div>
+              </div>
+
               {/* Trends Card */}
               <div className="bg-surface-dark border border-border-dark p-5 rounded-md">
                 <div className="flex justify-between items-center border-b border-border-dark pb-3 mb-4">
@@ -1349,7 +1382,78 @@ export default function App() {
       </footer>
 
       {/* Ko-fi Floating Donate Button */}
-      <KofiButton />
+      <KofiButton onClick={() => setDonationModalOpen(true)} />
+
+      {/* Donation QR Code Modal */}
+      {donationModalOpen && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[9999] backdrop-blur-sm animate-fade-in">
+          <div className="bg-surface-dark border border-border-dark max-w-sm w-full rounded-md p-6 relative flex flex-col gap-4 text-center animate-zoom-in">
+            <button
+              className="absolute top-3 right-3 text-zinc-400 hover:text-ink-light text-xl font-bold cursor-pointer"
+              onClick={() => setDonationModalOpen(false)}
+            >
+              ×
+            </button>
+            <h3 className="text-lg font-bold border-b border-border-dark pb-3 text-left">สนับสนุนค่าเซิร์ฟเวอร์และระบบ</h3>
+            <p className="text-xs text-muted-zinc leading-relaxed text-left">
+              ร่วมบริจาคสนับสนุนทุนพัฒนาและสมทบค่าบริการเซิร์ฟเวอร์ เพื่อร่วมรักษาพื้นที่คอมมูนิตี้ให้เปิดให้บริการอย่างมั่นคงปลอดภัยต่อไป
+            </p>
+            
+            <div className="flex flex-col gap-4">
+              {/* Option A: PromptPay Scan */}
+              <div className="flex flex-col items-center gap-2.5 bg-bg-dark/50 p-4 rounded-sm border border-border-dark/30">
+                <div className="text-xs font-bold text-ink-light flex items-center gap-1.5 w-full text-left">
+                  ช่องทางที่ 1: สแกน QR Code (PromptPay)
+                </div>
+                <img 
+                  className="w-48 h-48 rounded-sm object-cover border border-zinc-800" 
+                  src="/images/qrcode.jpg" 
+                  alt="Thai QR Code Donation" 
+                />
+                <div className="text-[9px] text-zinc-400 leading-relaxed">
+                  สามารถสแกนได้ผ่านทุกแอปพลิเคชันธนาคารในประเทศไทย
+                </div>
+              </div>
+
+              {/* Separator divider */}
+              <div className="flex items-center justify-center gap-3">
+                <span className="h-[1px] w-full bg-border-dark"></span>
+                <span className="text-[10px] text-zinc-500 font-semibold tracking-wider whitespace-nowrap uppercase">หรือ</span>
+                <span className="h-[1px] w-full bg-border-dark"></span>
+              </div>
+
+              {/* Option B: Ko-fi link */}
+              <div className="flex flex-col gap-2">
+                <div className="text-xs font-bold text-ink-light text-left pl-1">
+                  ช่องทางที่ 2: เลี้ยงกาแฟผ่าน Ko-fi
+                </div>
+                <a
+                  href="https://ko-fi.com/brandnewnox"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full inline-flex items-center justify-center gap-2 bg-[#FF5E5B] hover:bg-[#ff4a47] text-white text-xs font-bold py-2.5 rounded-sm transition-all hover:scale-[1.01] hover:shadow-lg hover:shadow-[#FF5E5B]/20 cursor-pointer"
+                  onClick={() => setDonationModalOpen(false)}
+                >
+                  <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4" aria-hidden="true">
+                    <path d="M11.351 2.715c-2.7 0-4.986.025-6.83.26C2.078 3.285 0 5.154 0 8.61c0 3.506.182 6.13 1.585 8.493 1.584 2.701 4.233 4.182 7.662 4.182h.83c4.209 0 6.494-2.234 7.637-4a9.5 9.5 0 0 0 1.091-2.338C21.792 14.688 24 12.22 24 9.208v-.415c0-3.247-2.13-5.507-5.792-5.87-1.558-.156-2.65-.208-6.857-.208m0 1.947c4.208 0 5.09.052 6.571.182 2.624.311 4.13 1.584 4.13 4v.39c0 2.156-1.792 3.844-3.87 3.844h-.935l-.156.649c-.208 1.013-.597 1.818-1.039 2.546-.909 1.428-2.545 3.064-5.922 3.064h-.805c-2.571 0-4.831-.883-6.078-3.195-1.09-2-1.298-4.155-1.298-7.506 0-2.181.857-3.402 3.012-3.714 1.533-.233 3.559-.26 6.39-.26m6.547 2.287c-.416 0-.65.234-.65.546v2.935c0 .311.234.545.65.545 1.324 0 2.051-.754 2.051-2s-.727-2.026-2.052-2.026m-10.39.182c-1.818 0-3.013 1.48-3.013 3.142 0 1.533.858 2.857 1.949 3.897.727.701 1.87 1.429 2.649 1.896a1.47 1.47 0 0 0 1.507 0c.78-.467 1.922-1.195 2.623-1.896 1.117-1.039 1.974-2.364 1.974-3.897 0-1.662-1.247-3.142-3.039-3.142-1.065 0-1.792.545-2.338 1.298-.493-.753-1.246-1.298-2.312-1.298" />
+                  </svg>
+                  เลี้ยงกาแฟผ่าน Ko-fi (บัตรเครดิต / PayPal)
+                </a>
+                <div className="text-[9px] text-zinc-500 text-left pl-1">
+                  เหมาะสำหรับผู้ใช้ต่างประเทศ หรือชำระเงินด้วยบัตรเครดิต
+                </div>
+              </div>
+            </div>
+
+            <button
+              className="w-full bg-zinc-900 hover:bg-zinc-800 text-zinc-400 text-xs font-semibold py-2.5 mt-2 rounded-sm border border-zinc-800 transition-colors cursor-pointer"
+              onClick={() => setDonationModalOpen(false)}
+            >
+              ปิดหน้าต่าง
+            </button>
+          </div>
+        </div>
+      )}
 
     </div>
   );
