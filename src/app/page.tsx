@@ -668,7 +668,7 @@ export default function App() {
         {/* ==================== VIEW 1.5. ONBOARDING BIND X ACCOUNT ==================== */}
         {currentUser && !currentUser.x_username && (
           <section className="max-w-md w-full mx-auto my-16 border border-border-dark bg-surface-dark p-8 rounded-md text-center">
-            <h2 className="text-2xl font-bold mb-2">ผูกบัญชี 𝕏 (Twitter)</h2>
+            <h2 className="text-2xl font-bold mb-2">ผูกบัญชี X (Twitter)</h2>
             <p className="text-sm text-muted-zinc mb-6 leading-relaxed">
               กรุณากรอกข้อมูลโปรไฟล์ X.com ของคุณเพื่อขอสมัครเข้าร่วมกลุ่มแลกเปลี่ยนแต้ม ข้อมูลนี้จะส่งไปให้แอดมินอนุมัติผ่านแผงควบคุมหลังบ้าน
             </p>
@@ -734,14 +734,14 @@ export default function App() {
             </div>
 
             <div className="text-left bg-primary/5 border border-primary/20 p-4 rounded-sm text-sm mb-6 leading-relaxed">
-              💡 <span className="font-semibold text-primary">คำแนะนำสำหรับการทดสอบ:</span> สมาชิกสามารถกดที่เมนู **"เปิดระบบแอดมินหลังบ้าน"** ด้านล่างสุดของหน้าจอ (Footer) เพื่อจำลองสิทธิ์เป็น Admin และเข้าไปกด Approve โปรไฟล์ของตัวท่านเองได้ในหน้าระบบควบคุมผู้ดูแล!
+              <span className="font-semibold text-primary">คำแนะนำสำหรับการทดสอบ:</span> สมาชิกสามารถกดที่เมนู **"เปิดระบบแอดมินหลังบ้าน"** ด้านล่างสุดของหน้าจอ (Footer) เพื่อจำลองสิทธิ์เป็น Admin และเข้าไปกด Approve โปรไฟล์ของตัวท่านเองได้ในหน้าระบบควบคุมผู้ดูแล!
             </div>
 
             <button
               className="w-full border border-border-dark hover:bg-surface-dark py-3 rounded-sm font-semibold transition-colors cursor-pointer text-sm"
               onClick={checkSession}
             >
-              🔄 รีเฟรชเช็คสถานะการเข้าใช้งาน
+              ตรวจสอบสถานะการเข้าใช้งาน
             </button>
           </section>
         )}
@@ -756,7 +756,7 @@ export default function App() {
               {/* Composer - Link Only */}
               <div className="bg-surface-dark border border-border-dark p-6 rounded-md">
                 <h3 className="text-lg font-bold border-b border-border-dark pb-3 mb-4 flex items-center gap-2">
-                  🔗 แชร์โพสต์ของคุณ
+                  แชร์ลิงก์โพสต์
                 </h3>
                 <p className="text-xs text-muted-zinc mb-5 leading-relaxed">
                   นำลิงก์ทวีตจริงที่คุณได้ทำการโพสต์บน X.com ของคุณมาวางลงในกล่องด้านล่าง
@@ -788,7 +788,7 @@ export default function App() {
                 </div>
 
                 <div className="mt-5 pt-4 border-t border-border-dark/50 text-[10px] text-muted-zinc leading-relaxed">
-                  💡 <strong>ขั้นตอนการทำคอนเทนต์:</strong> 1. เขียนข้อความและโพสต์ทวีตจริงด้วยตัวเองโดยตรงบนเว็บไซต์ X.com &mdash; 2. คัดลอกลิงก์สถานะทวีตของคุณ &mdash; 3. นำมาวางลงทะเบียนในกล่องด้านบนเพื่อเปิดฟีดแลกคะแนน.
+                  <strong>ขั้นตอนการดำเนินงาน:</strong> 1. เขียนข้อความและโพสต์ทวีตจริงด้วยตัวเองโดยตรงบนเว็บไซต์ X.com &mdash; 2. คัดลอกลิงก์สถานะทวีตของคุณ &mdash; 3. นำมาวางลงทะเบียนในกล่องด้านบนเพื่อเปิดฟีดแลกคะแนน.
                 </div>
               </div>
 
@@ -828,9 +828,9 @@ export default function App() {
                       onChange={e => setFeedSort(e.target.value as any)}
                       className="bg-bg-dark border border-border-dark text-xs text-ink-light px-2.5 py-1.5 rounded-sm focus:outline-none focus:border-primary w-full sm:w-44"
                     >
-                      <option value="priority">🔥 ความเร่งด่วน (แต้มสูงสุด)</option>
-                      <option value="newest">⏱️ แชร์ล่าสุด</option>
-                      <option value="oldest">⏳ แชร์เก่าสุด</option>
+                      <option value="priority">จัดตามลำดับความสำคัญ</option>
+                      <option value="newest">โพสต์ใหม่ล่าสุด</option>
+                      <option value="oldest">โพสต์เก่าที่สุด</option>
                     </select>
                   </div>
                 </div>
@@ -986,17 +986,17 @@ export default function App() {
                             {(() => {
                               const bountyPoints = getPostHelpPoints(post.created_at);
                               let btnClass = "border border-primary/40 hover:border-primary hover:bg-primary/10 text-primary";
-                              let label = "ช่วยเหลือ +1 แต้ม";
+                              let label = "ช่วยเหลือ (+1 คะแนน)";
                               
                               if (bountyPoints === 5) {
                                 btnClass = "border border-emerald-500/40 hover:border-emerald-500 hover:bg-emerald-500/10 text-emerald-400 animate-pulse font-extrabold shadow-[0_0_12px_rgba(16,185,129,0.15)]";
-                                label = "⚡ ช่วยเหลือ +5 แต้ม (โพสต์ใหม่ด่วน!)";
+                                label = "ช่วยเหลือ (+5 คะแนน)";
                               } else if (bountyPoints === 2) {
                                 btnClass = "border border-orange-500/40 hover:border-orange-500 hover:bg-orange-500/10 text-orange-400";
-                                label = "🔥 ช่วยเหลือ +2 แต้ม (ค้างนาน)";
+                                label = "ช่วยเหลือ (+2 คะแนน)";
                               } else if (bountyPoints === 3) {
                                 btnClass = "border border-red-500/40 hover:border-red-500 hover:bg-red-500/10 text-red-400 animate-pulse";
-                                label = "🚨 ช่วยเหลือ +3 แต้ม (ใกล้หมดอายุ)";
+                                label = "ช่วยเหลือ (+3 คะแนน)";
                               }
 
                               return (
@@ -1029,10 +1029,10 @@ export default function App() {
               <div className="bg-surface-dark border border-border-dark p-5 rounded-md">
                 <div className="flex justify-between items-center border-b border-border-dark pb-3 mb-4">
                   <h3 className="text-lg font-bold">กระแสเรียลไทม์ (ประเทศไทย)</h3>
-                  <button className="text-[10px] uppercase font-bold text-primary hover:text-primary-hover cursor-pointer" onClick={refreshTrends}>🔄 ดึงข้อมูลใหม่</button>
+                  <button className="text-[10px] uppercase font-bold text-primary hover:text-primary-hover cursor-pointer" onClick={refreshTrends}>ดึงข้อมูลใหม่</button>
                 </div>
                 <p className="text-xs text-muted-zinc leading-relaxed mb-4">
-                  ระบบวิเคราะห์แท็กยอดนิยมในไทย แนะนำหยิบแท็กเหล่านี้ไปเพิ่มลงโพสเพื่อเปิด Impression หรือเพิ่มค่าการมองเห็นทวีต
+                  วิเคราะห์แฮชแท็กยอดนิยมในประเทศไทย เพื่อประกอบการจัดทำเนื้อหาในการเผยแพร่โพสต์
                 </p>
                 <div className="flex flex-col gap-3">
                   {trends.map(t => (
@@ -1045,7 +1045,7 @@ export default function App() {
                         <span className="font-semibold text-sm text-ink-light">{t.hashtag}</span>
                         <span className="text-[10px] text-muted-zinc">{t.tweet_volume.toLocaleString()} ทวีต</span>
                       </div>
-                      {t.is_hot && <span className="bg-red-500/10 border border-red-500/20 text-red-500 text-[9px] font-bold py-0.5 px-2 rounded-sm">🔥 มาแรง</span>}
+                      {t.is_hot && <span className="bg-red-500/10 border border-red-500/20 text-red-500 text-[9px] font-bold py-0.5 px-2 rounded-sm">ยอดนิยม</span>}
                     </div>
                   ))}
                 </div>
@@ -1085,14 +1085,14 @@ export default function App() {
             </div>
 
             <div className="flex gap-4 bg-surface-dark border border-border-dark p-4 rounded-md">
-              <span className="text-2xl">🏆</span>
+              <span className="text-2xl"></span>
               <div className="text-xs text-muted-zinc leading-relaxed">
                 <strong>เกณฑ์วัดแต้มน้ำใจและการเก็บสถิติ (ระบบแต้มทวีคูณ Dynamic Bounty):</strong><br />
-                • โพสต์แชร์ไม่เกิน 10 นาที (โพสต์ด่วนร้อนแรงสุด ⚡) = <span className="font-bold text-emerald-400">+5 แต้ม</span><br />
+                • โพสต์แชร์ไม่เกิน 10 นาที (โพสต์ภายใน 10 นาทีแรก) = <span className="font-bold text-emerald-400">+5 แต้ม</span><br />
                 • โพสต์แชร์ 10 นาที - 2 ชั่วโมง (ช่วยเหลือปกติ) = <span className="font-bold text-primary">+1 แต้ม</span><br />
-                • โพสต์แชร์ 2 - 4 ชั่วโมง (ค้างนานเริ่มเร่งด่วน! 🔥) = <span className="font-bold text-orange-400">+2 แต้ม</span><br />
-                • โพสต์แชร์ 4 - 6 ชั่วโมง (ใกล้หมดอายุ/โอกาสสุดท้าย! 🚨) = <span className="font-bold text-red-400">+3 แต้ม</span><br />
-                <span className="text-zinc-500">• คะแนนจะได้รับเมื่อช่วยเหลือแชร์ลิงก์ 1 ครั้งต่อโพสต์เท่านั้น (มีระบบคัดกรองและจัดเรียงโพสต์ตามระดับความเร่งด่วนเพื่อไม่ให้หมดอายุฟรี)</span>
+                • โพสต์แชร์ 2 - 4 ชั่วโมง (โพสต์ที่ไม่มีการเคลื่อนไหวเกิน 2 ชั่วโมง) = <span className="font-bold text-orange-400">+2 แต้ม</span><br />
+                • โพสต์แชร์ 4 - 6 ชั่วโมง (โพสต์ที่ใกล้หมดอายุการแสดงผล) = <span className="font-bold text-red-400">+3 แต้ม</span><br />
+                <span className="text-zinc-500">• คะแนนจะได้รับเมื่อช่วยเหลือแชร์ลิงก์ 1 ครั้งต่อโพสต์เท่านั้น (ระบบจะจัดลำดับความเร่งด่วนของโพสต์ขึ้นแสดงผลก่อนอัตโนมัติ)</span>
               </div>
             </div>
 
@@ -1128,7 +1128,7 @@ export default function App() {
       {/* FOOTER */}
       <footer className="border-t border-border-dark py-6 px-6 text-center text-xs text-muted-zinc mt-12 bg-bg-dark">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
-          <p>© 2026 ติ๊กฟ้าช่วยติ๊กฟ้า. All Rights Reserved. แพลตฟอร์มปิดจำลองค่าน้ำใจและความร่วมมือ</p>
+          <p>© 2026 ระบบการจัดการความร่วมมือครีเอเตอร์ สงวนลิขสิทธิ์</p>
         </div>
       </footer>
 

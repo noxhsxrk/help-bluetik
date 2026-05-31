@@ -404,7 +404,7 @@ export default function AdminPage() {
                 onClick={handleAdminLogin}
                 disabled={loginLoading}
               >
-                {loginLoading ? 'กำลังตรวจสอบ...' : '🔒 เข้าสู่ระบบผู้ดูแล'}
+                {loginLoading ? 'กำลังตรวจสอบ...' : 'เข้าสู่ระบบผู้ดูแลระบบ'}
               </button>
             </div>
             
@@ -449,7 +449,7 @@ export default function AdminPage() {
                 }`}
                 onClick={() => setActiveTab('pending')}
               >
-                📥 อนุมัติสมาชิกใหม่ ({pendingUsers.length})
+                อนุมัติสมาชิกใหม่ ({pendingUsers.length})
               </button>
               
               <button
@@ -460,7 +460,7 @@ export default function AdminPage() {
                 }`}
                 onClick={() => setActiveTab('users')}
               >
-                👥 จัดการรายชื่อสมาชิก ({allUsers.length})
+                จัดการรายชื่อสมาชิก ({allUsers.length})
               </button>
 
               <button
@@ -471,7 +471,7 @@ export default function AdminPage() {
                 }`}
                 onClick={() => setActiveTab('utilities')}
               >
-                ⚙️ คำสั่งผู้ดูแลพิเศษ
+                เครื่องมือผู้ดูแลระบบ
               </button>
             </div>
 
@@ -512,7 +512,7 @@ export default function AdminPage() {
                               rel="noopener noreferrer"
                               className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline font-semibold my-2"
                             >
-                              🔍 ตรวจสอบโปรไฟล์จริงบน X.com ↗
+                              ตรวจสอบโปรไฟล์บน X.com ↗
                             </a>
                             <p className="text-xs text-ink-light bg-bg-dark/80 p-2.5 rounded-sm border border-border-dark/60 break-words mt-1">{u.bio || '(ไม่มีรายละเอียดประวัติ)'}</p>
                           </div>
@@ -544,11 +544,10 @@ export default function AdminPage() {
                   {/* Search & Filter Header bar */}
                   <div className="flex flex-col md:flex-row gap-4 justify-between items-center mb-6">
                     <div className="w-full md:w-72 relative">
-                      <span className="absolute left-3 top-2.5 text-zinc-500 text-sm">🔍</span>
                       <input
                         type="text"
                         placeholder="ค้นหาชื่อ, @username หรืออีเมล..."
-                        className="w-full bg-bg-dark border border-border-dark py-2 pl-9 pr-4 rounded-sm text-sm text-ink-light focus:outline-none focus:border-primary"
+                        className="w-full bg-bg-dark border border-border-dark py-2 px-4 rounded-sm text-sm text-ink-light focus:outline-none focus:border-primary"
                         value={searchQuery}
                         onChange={e => setSearchQuery(e.target.value)}
                       />
@@ -596,7 +595,6 @@ export default function AdminPage() {
                                   <div className="min-w-0">
                                     <div className="font-bold text-ink-light truncate text-sm flex items-center gap-1">
                                       {u.x_name}
-                                      {u.role === 'admin' && <span className="text-purple-400 text-xs">👑</span>}
                                     </div>
                                     <a
                                       href={`https://x.com/${u.x_username}`}
@@ -632,13 +630,13 @@ export default function AdminPage() {
                                     onClick={() => openEditModal(u)}
                                     className="bg-zinc-800 hover:bg-zinc-700 text-ink-light px-3 py-1.5 rounded-sm text-xs font-semibold cursor-pointer transition-colors"
                                   >
-                                    ✏️ แก้ไข
+                                    แก้ไข
                                   </button>
                                   <button
                                     onClick={() => handleDeleteUser(u.id, u.x_username)}
                                     className="bg-red-950/40 border border-red-900/30 text-red-400 hover:bg-red-900/60 hover:text-white px-3 py-1.5 rounded-sm text-xs font-semibold cursor-pointer transition-all"
                                   >
-                                    🗑️ ลบ
+                                    ลบ
                                   </button>
                                 </div>
                               </td>
@@ -667,7 +665,7 @@ export default function AdminPage() {
                       onClick={handleResetCooldowns}
                       className="w-full bg-zinc-800 hover:bg-zinc-700 text-ink-light font-bold py-3 px-4 rounded-sm text-sm transition-colors cursor-pointer text-center"
                     >
-                      ⚡ สั่งล้างคูลดาวน์โพสต์ทั้งหมด
+                      รีเซ็ตคูลดาวน์โพสต์ทั้งหมด
                     </button>
                   </div>
 
@@ -686,7 +684,7 @@ export default function AdminPage() {
                       onClick={handleResetAllScores}
                       className="w-full bg-red-950/40 border border-red-700/50 text-red-400 hover:bg-red-600 hover:text-white font-bold py-3 px-4 rounded-sm text-sm transition-all cursor-pointer text-center"
                     >
-                      ⚠️ สั่งรีเซ็ตล้างแต้มทุกคนเป็น 0
+                      รีเซ็ตคะแนนสะสมทั้งหมด
                     </button>
                   </div>
 
@@ -783,7 +781,7 @@ export default function AdminPage() {
                     onClick={() => setEditAvatar(`https://api.dicebear.com/7.x/identicon/svg?seed=${Math.random().toString(36).substring(2, 7)}`)}
                     className="text-[10px] text-primary hover:underline font-semibold cursor-pointer"
                   >
-                    🎲 สุ่มรูปอวาตาร์ใหม่
+                    สุ่มรูปภาพโปรไฟล์
                   </button>
                 </div>
                 <input
@@ -854,7 +852,7 @@ export default function AdminPage() {
                 className="bg-primary hover:bg-primary-hover text-white font-bold text-xs py-2 px-5 rounded-sm cursor-pointer transition-colors flex items-center gap-1.5"
                 disabled={savingEdit}
               >
-                {savingEdit ? 'กำลังบันทึก...' : '💾 บันทึกการแก้ไข'}
+                {savingEdit ? 'กำลังบันทึก...' : 'บันทึกการแก้ไข'}
               </button>
             </div>
           </div>
@@ -864,7 +862,7 @@ export default function AdminPage() {
       {/* FOOTER */}
       <footer className="border-t border-border-dark py-6 px-6 text-center text-xs text-muted-zinc bg-bg-dark">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
-          <p>© 2026 ติ๊กฟ้าช่วยติ๊กฟ้า. All Rights Reserved. แพลตฟอร์มปิดจำลองค่าน้ำใจและความร่วมมือ</p>
+          <p>© 2026 ระบบการจัดการความร่วมมือครีเอเตอร์ สงวนลิขสิทธิ์</p>
         </div>
       </footer>
 
