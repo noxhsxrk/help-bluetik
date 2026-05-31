@@ -15,6 +15,7 @@ export interface User {
   help_score: number;
   spendable_points?: number;
   referral_code?: string;
+  supabase_auth_id?: string;
   approved_at?: number;
   approved_by?: string;
   google_email?: string;

@@ -57,6 +57,7 @@ interface User {
   bio: string;
   help_score: number;
   spendable_points?: number;
+  supabase_auth_id?: string;
   google_email?: string;
 }
 
@@ -181,7 +182,10 @@ export default function App() {
         const res = await fetch('/api/auth/x-sso', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: session.user.email })
+          body: JSON.stringify({ 
+            email: session.user.email,
+            authUserId: session.user.id
+          })
         });
         const data = await res.json();
         if (data.success && data.user) {

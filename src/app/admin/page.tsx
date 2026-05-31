@@ -11,6 +11,7 @@ interface User {
   bio: string;
   help_score: number;
   spendable_points?: number;
+  supabase_auth_id?: string;
   google_email?: string;
 }
 

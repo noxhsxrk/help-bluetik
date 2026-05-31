@@ -12,6 +12,7 @@ export async function GET() {
 
   const user = await DB.getUserById(userIdCookie.value);
   if (!user) {
+    cookieStore.delete('tb_session_user_id');
     return NextResponse.json({ authenticated: false, user: null });
   }
 

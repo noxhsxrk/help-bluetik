@@ -4,7 +4,7 @@ import { DB } from '@/lib/db';
 
 export async function POST(request: Request) {
   try {
-    const { username, email, xUsername, xName, bio, referralCode } = await request.json();
+    const { username, email, xUsername, xName, bio, referralCode, authUserId } = await request.json();
 
     // Mode 1: Free Google SSO Simulator
     if (email) {
@@ -19,8 +19,13 @@ export async function POST(request: Request) {
           avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${cleanEmail.split('@')[0]}`,
           bio: '',
           role: 'pending',
-          google_email: cleanEmail
+          google_email: cleanEmail,
+          supabase_auth_id: authUserId || ''
         });
+      } else if (!user.supabase_auth_id && authUserId) {
+        // อัปเดตรหัส Supabase Auth ID สำหรับผู้ใช้ที่มีอยู่แล้วเพื่อให้แอดมินลบ SSO ออกได้ปลอดภัย
+        await DB.updateUserAdmin(user.id, { supabase_auth_id: authUserId });
+        user.supabase_auth_id = authUserId;
       }
 
       const cookieStore = await cookies();
@@ -51,7 +56,8 @@ export async function POST(request: Request) {
 
       const updatedUser = await DB.updateXUsername(userIdCookie.value, xUsername, xName, bio, referralCode);
       if (!updatedUser) {
-        return NextResponse.json({ error: 'User not found' }, { status: 404 });
+        cookieStore.delete('tb_session_user_id');
+        return NextResponse.json({ error: 'ไม่พบข้อมูลบัญชีสมาชิกในระบบแล้ว อาจเป็นเพราะบัญชีถูกแอดมินลบออก กรุณาลงชื่อเข้าใช้อีกครั้งเพื่อสร้างโปรไฟล์ใหม่' }, { status: 404 });
       }
 
       return NextResponse.json({ success: true, user: updatedUser });
