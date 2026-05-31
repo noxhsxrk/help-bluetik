@@ -625,6 +625,15 @@ export default function App() {
                 </svg>
                 เลี้ยงกาแฟ
               </a>
+              <button
+                className="text-sm text-left text-red-500 hover:text-red-400 font-medium transition-colors border-t border-border-dark pt-3 mt-1 cursor-pointer"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  handleSignOut();
+                }}
+              >
+                ออกจากระบบ (Sign Out)
+              </button>
             </div>
           )}
         </header>

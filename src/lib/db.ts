@@ -297,7 +297,7 @@ export const DB = {
     const cutoff = Date.now() - POST_EXPIRY_MS;
 
     // ── On-the-fly Database Cleanup ───────────────────────────
-    // สั่งลบโพสและ interactions ที่หมดอายุ (เก่ากว่า 3 ชั่วโมง) ทันที
+    // สั่งลบโพสและ interactions ที่หมดอายุ (เก่ากว่า 6 ชั่วโมง) ทันที
     // ทำแบบ background promise เพื่อไม่ให้หน่วงการตอบสนองผู้ใช้ (non-blocking)
     try {
       supabase
